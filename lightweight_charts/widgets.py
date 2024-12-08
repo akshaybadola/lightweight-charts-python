@@ -1,5 +1,8 @@
 import asyncio
 import html
+import jinja2
+from flask import render_template
+import re
 
 from .util import parse_event_message
 from lightweight_charts import abstract
@@ -109,8 +112,8 @@ class QtChart(abstract.AbstractChart):
             self.webview.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self.webview.load(QUrl.fromLocalFile(abstract.INDEX))
 
-
-    def get_webview(self): return self.webview
+    def get_webview(self):
+        return self.webview
 
 
 class StaticLWC(abstract.AbstractChart):
@@ -121,7 +124,7 @@ class StaticLWC(abstract.AbstractChart):
             css = f.read()
         with open(abstract.INDEX.replace("index.html", 'bundle.js'), 'r') as f:
             js = f.read()
-        with open(abstract.INDEX.replace("index.html", 'lightweight-charts.js'), 'r') as f:
+        with open(abstract.INDEX.replace("index.html", 'lightweight-charts.js'), 'r', encoding="utf-8") as f:
             lwc = f.read()
 
         with open(abstract.INDEX, 'r') as f:
@@ -151,6 +154,17 @@ class StaticLWC(abstract.AbstractChart):
         self._load()
 
     def _load(self): pass
+
+
+class FlaskChart(StaticLWC):
+    def __init__(self, title='Lightweight Chart', *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.title = title
+
+    def load(self):
+        super().load()
+        self._html = re.sub(r'<title>.*?</title>', f'<title>{self.title}</title>', self._html, flags=re.DOTALL)
+        return render_template(jinja2.Template(f'{self._html}</script></body></html>'))
 
 
 class StreamlitChart(StaticLWC):

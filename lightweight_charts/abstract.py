@@ -1,3 +1,4 @@
+from typing import Callable
 import asyncio
 import json
 import os
@@ -712,6 +713,11 @@ class AbstractChart(Candlestick, Pane):
         self.topbar: TopBar = TopBar(self)
         if toolbox:
             self.toolbox: ToolBox = ToolBox(self)
+        self._exit_hook: list[Callable] = []
+
+    def run_exit_hook(self):
+        for func in self._exit_hook:
+            func(self)
 
     def fit(self):
         """

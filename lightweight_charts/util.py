@@ -26,7 +26,7 @@ class IDGen(list):
         if var not in self:
             self.append(var)
             return f'window.{var}'
-        self.generate()
+        return self.generate()
 
 
 def parse_event_message(window, string):
@@ -39,7 +39,9 @@ def parse_event_message(window, string):
 def js_data(data: Union[pd.DataFrame, pd.Series]):
     if isinstance(data, pd.DataFrame):
         d = data.to_dict(orient='records')
-        filtered_records = [{k: v for k, v in record.items() if v is not None and not pd.isna(v)} for record in d]
+        filtered_records = [{k: v for k, v in record.items()
+                             if v is not None and not pd.isna(v)}
+                            for record in d]
     else:
         d = data.to_dict()
         filtered_records = {k: v for k, v in d.items()}
@@ -49,6 +51,7 @@ def js_data(data: Union[pd.DataFrame, pd.Series]):
 def snake_to_camel(s: str):
     components = s.split('_')
     return components[0] + ''.join(x.title() for x in components[1:])
+
 
 def js_json(d: dict):
     filtered_dict = {}
@@ -61,7 +64,9 @@ def js_json(d: dict):
     return f"JSON.parse('{json.dumps(filtered_dict)}')"
 
 
-def jbool(b: bool): return 'true' if b is True else 'false' if b is False else None
+def jbool(b: bool):
+    return 'true' if b is True else\
+        'false' if b is False else None
 
 
 LINE_STYLE = Literal['solid', 'dotted', 'dashed', 'large_dashed', 'sparse_dotted']
@@ -126,11 +131,18 @@ class JSEmitter:
 
     def __iadd__(self, other):
         def final_wrapper(*arg):
-            other(self._chart, *arg) if not self._wrapper else self._wrapper(other, self._chart, *arg)
-        async def final_async_wrapper(*arg):
-            await other(self._chart, *arg) if not self._wrapper else await self._wrapper(other, self._chart, *arg)
+            other(self._chart, *arg)\
+                if not self._wrapper else\
+                   self._wrapper(other, self._chart, *arg)
 
-        self._chart.win.handlers[self._name] = final_async_wrapper if asyncio.iscoroutinefunction(other) else final_wrapper
+        async def final_async_wrapper(*arg):
+            await other(self._chart, *arg)\
+                if not self._wrapper else\
+                   await self._wrapper(other, self._chart, *arg)
+
+        self._chart.win.handlers[self._name] = final_async_wrapper\
+            if asyncio.iscoroutinefunction(other) else\
+               final_wrapper
         self._on_iadd(other)
         return self
 
@@ -141,7 +153,7 @@ class Events:
         self.search = JSEmitter(chart, f'search{chart.id}',
             lambda o: chart.run_script(f'''
             Lib.Handler.makeSpinner({chart.id})
-            {chart.id}.search = Lib.Handler.makeSearchBox({chart.id})
+            {chart.id}.search = Lib.Handler.makeSearchBox({chart.id}, {chart.symbols})
             ''')
         )
         salt = chart.id[chart.id.index('.')+1:]
@@ -149,10 +161,10 @@ class Events:
             lambda o: chart.run_script(f'''
             let checkLogicalRange{salt} = (logical) => {{
                 {chart.id}.chart.timeScale().unsubscribeVisibleLogicalRangeChange(checkLogicalRange{salt})
-                
+
                 let barsInfo = {chart.id}.series.barsInLogicalRange(logical)
                 if (barsInfo) window.callbackFunction(`range_change{salt}_~_${{barsInfo.barsBefore}};;;${{barsInfo.barsAfter}}`)
-                    
+
                 setTimeout(() => {chart.id}.chart.timeScale().subscribeVisibleLogicalRangeChange(checkLogicalRange{salt}), 50)
             }}
             {chart.id}.chart.timeScale().subscribeVisibleLogicalRangeChange(checkLogicalRange{salt})
@@ -172,6 +184,7 @@ class Events:
             '''),
             wrapper=lambda func, c, *args: func(c, *[float(a) if a != 'null' else None for a in args])
         )
+
 
 class BulkRunScript:
     def __init__(self, script_func):

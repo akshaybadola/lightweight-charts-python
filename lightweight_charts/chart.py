@@ -33,7 +33,6 @@ class PyWV:
         self.windows: typing.List[webview.Window] = []
         self.loop()
 
-
     def create_window(
         self, width, height, x, y, screen=None, on_top=False,
         maximize=False, title=''
@@ -58,7 +57,6 @@ class PyWV:
             on_top=on_top,
             background_color='#000000')
         )
-
         self.windows[-1].events.loaded += lambda: self.loaded_event.set()
 
 
@@ -200,6 +198,7 @@ class Chart(abstract.AbstractChart):
             Chart.WV.show(self._i)
         if block:
             asyncio.run(self.show_async())
+            self.exit()
 
     async def show_async(self):
         self.show(block=False)
@@ -234,3 +233,4 @@ class Chart(abstract.AbstractChart):
         """
         Chart.WV.exit()
         self.is_alive = False
+        self.run_exit_hook()

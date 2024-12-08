@@ -292,45 +292,132 @@ export class Handler {
         parentChart.chart.timeScale().subscribeVisibleLogicalRangeChange(setChildRange)
     }
 
-    public static makeSearchBox(chart: Handler) {
-        const searchWindow = document.createElement('div')
+    public static makeSearchBox(chart: Handler, moreItems: []) {
+        const searchWindow = document.createElement('div');
         searchWindow.classList.add('searchbox');
         searchWindow.style.display = 'none';
 
+        console.log("Got items", moreItems);
+        let items = ['AAPL', 'GOOGL', 'TSLA'];
+        moreItems = moreItems.filter(item => ! items.includes(item));
+        items = [...items, ...moreItems];
+        items.sort();
+        console.log("Final items", items);
         const magnifyingGlass = document.createElement('div');
-        magnifyingGlass.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><path style="fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:lightgray;stroke-opacity:1;stroke-miterlimit:4;" d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 3 10 3 C 13.867188 3 17 6.132812 17 10 C 17 13.867188 13.867188 17 10 17 Z M 10 17 "/></svg>`
+        magnifyingGlass.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
+<path style="fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:lightgray;" 
+d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 3 10 3 C 13.867188 3 17 6.132812 17 10 C 17 13.867188 13.867188 17 10 17 Z M 10 17 "/>
+</svg>`;
 
         const sBox = document.createElement('input');
         sBox.type = 'text';
 
-        searchWindow.appendChild(magnifyingGlass)
-        searchWindow.appendChild(sBox)
+        const resultsList = document.createElement('ul');
+        resultsList.classList.add('search-results');
+        resultsList.style.color = 'white';
+        resultsList.style.display = 'none';
+
+        searchWindow.appendChild(magnifyingGlass);
+        searchWindow.appendChild(sBox);
+        searchWindow.appendChild(resultsList);
         chart.div.appendChild(searchWindow);
 
+        function fuzzySearch(query: string) {
+            if (!query) {
+                resultsList.style.display = 'none';
+                return;
+            }
+            resultsList.style.display = 'block';
+            const results = items.filter(item =>
+                item.toUpperCase().includes(query.toUpperCase()));
+            resultsList.innerHTML = results.map(item => `<li>${item}</li>`).join('');
+            resultsList.style.display = results.length ? 'block' : 'none';
+        }
+
+        sBox.addEventListener('input', () => {
+            const query = sBox.value.trim();
+            fuzzySearch(query);
+        });
+
+        resultsList.addEventListener('click', (event: MouseEvent) => {
+            const target = event.target as HTMLLIElement;
+            if (target && target.tagName === 'LI') {
+                sBox.value = target.textContent || '';
+                searchWindow.style.display = 'none';
+                resultsList.style.display = 'none';
+            }
+        });
+
         chart.commandFunctions.push((event: KeyboardEvent) => {
-            if (window.handlerInFocus !== chart.id || window.textBoxFocused) return false
+            if (window.handlerInFocus !== chart.id || window.textBoxFocused) return false;
             if (searchWindow.style.display === 'none') {
                 if (/^[a-zA-Z0-9]$/.test(event.key)) {
                     searchWindow.style.display = 'flex';
                     sBox.focus();
-                    return true
+                    return true;
+                } else return false;
+            } else if (event.key === 'Enter' || event.key === 'Escape') {
+                if (event.key === 'Enter') {
+                    const result = `${sBox.value}\n${resultsList.innerText}`;
+                    window.callbackFunction(`search${chart.id}_~_${result}`);
+                    // console.log("RESULTS", resultsList.innerHTML.value);
+                    // window.callbackFunction(`search${chart.id}_~_${sBox.value}`);
                 }
-                else return false
+                searchWindow.style.display = 'none';
+                sBox.value = '';
+                resultsList.style.display = 'none';
+                return true;
             }
-            else if (event.key === 'Enter' || event.key === 'Escape') {
-                if (event.key === 'Enter') window.callbackFunction(`search${chart.id}_~_${sBox.value}`)
-                searchWindow.style.display = 'none'
-                sBox.value = ''
-                return true
-            }
-            else return false
-        })
-        sBox.addEventListener('input', () => sBox.value = sBox.value.toUpperCase())
+            return false;
+        });
+
+        sBox.addEventListener('input', () => sBox.value = sBox.value.toUpperCase());
         return {
             window: searchWindow,
             box: sBox,
-        }
+            results: resultsList,
+        };
     }
+
+    // public static makeSearchBox(chart: Handler) {
+    //     const searchWindow = document.createElement('div')
+    //     searchWindow.classList.add('searchbox');
+    //     searchWindow.style.display = 'none';
+
+    //     const magnifyingGlass = document.createElement('div');
+    //     magnifyingGlass.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><path style="fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:lightgray;stroke-opacity:1;stroke-miterlimit:4;" d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 3 10 3 C 13.867188 3 17 6.132812 17 10 C 17 13.867188 13.867188 17 10 17 Z M 10 17 "/></svg>`
+
+    //     const sBox = document.createElement('input');
+    //     sBox.type = 'text';
+
+    //     searchWindow.appendChild(magnifyingGlass)
+    //     searchWindow.appendChild(sBox)
+    //     chart.div.appendChild(searchWindow);
+
+    //     chart.commandFunctions.push((event: KeyboardEvent) => {
+    //         if (window.handlerInFocus !== chart.id || window.textBoxFocused) return false
+    //         if (searchWindow.style.display === 'none') {
+    //             if (/^[a-zA-Z0-9]$/.test(event.key)) {
+    //                 searchWindow.style.display = 'flex';
+    //                 sBox.focus();
+    //                 return true
+    //             }
+    //             else return false
+    //         }
+    //         else if (event.key === 'Enter' || event.key === 'Escape') {
+    //             if (event.key === 'Enter') window.callbackFunction(`search${chart.id}_~_${sBox.value}`)
+    //             searchWindow.style.display = 'none'
+    //             sBox.value = ''
+    //             return true
+    //         }
+    //         else return false
+    //     })
+    //     sBox.addEventListener('input', () => sBox.value = sBox.value.toUpperCase())
+    //     return {
+    //         window: searchWindow,
+    //         box: sBox,
+    //     }
+    // }
 
     public static makeSpinner(chart: Handler) {
         chart.spinner = document.createElement('div');

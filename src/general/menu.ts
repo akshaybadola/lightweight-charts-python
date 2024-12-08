@@ -53,7 +53,7 @@ export class Menu {
         })
         this.widget.elem.innerText = items[0]+' ↓';
     }
-    
+
     private _clickHandler(name: string) {
         this.widget.elem.innerText = name+' ↓'
         window.callbackFunction(`${this.callbackName}_~_${name}`)

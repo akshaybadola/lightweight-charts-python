@@ -45,6 +45,7 @@ class Drawing(Pane):
             width: {width},
         }})''')
 
+
 class TwoPointDrawing(Drawing):
     def __init__(
         self,
@@ -177,8 +178,6 @@ class RayLine(Drawing):
         )
         {chart.id}.series.attachPrimitive({self.id})
         ''')
-
-
 
 
 class Box(TwoPointDrawing):

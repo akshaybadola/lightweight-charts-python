@@ -53,7 +53,7 @@ class Row(dict):
     def delete(self):
         self.run_script(f"{self._table.id}.deleteRow('{self.id}')")
         self._table.pop(self.id)
-        
+
 
 class Table(Pane, dict):
     VALUE = 'CELL__~__VALUE__~__PLACEHOLDER'
@@ -120,15 +120,20 @@ class Table(Pane, dict):
         self[row_id] = Row(self, row_id, {heading: item for heading, item in zip(self.headings, values)})
         return self[row_id]
 
-    def clear(self): self.run_script(f"{self.id}.clearRows()"), super().clear()
+    def clear(self):
+        self.run_script(f"{self.id}.clearRows()"), super().clear()
 
-    def get(self, __key: Union[int, str]) -> Row: return super().get(int(__key))
+    def get(self, __key: Union[int, str]) -> Row:
+        return super().get(int(__key))
 
-    def __getitem__(self, item): return super().__getitem__(int(item))
+    def __getitem__(self, item):
+        return super().__getitem__(int(item))
 
-    def format(self, column: str, format_str: str): self._formatters[column] = format_str
+    def format(self, column: str, format_str: str):
+        self._formatters[column] = format_str
 
-    def resize(self, width: NUM, height: NUM): self.run_script(f'{self.id}.reSize({width}, {height})')
+    def resize(self, width: NUM, height: NUM):
+        self.run_script(f'{self.id}.reSize({width}, {height})')
 
     def visible(self, visible: bool):
         self.is_shown = visible

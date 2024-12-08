@@ -194,6 +194,9 @@ export class Table {
 
     reSize(width: number, height: number) {
         this._div.style.width = width <= 1 ? width * 100 + '%' : width + 'px'
-        this._div.style.height = height <= 1 ? height * 100 + '%' : height + 'px'
-    }
+        // this._div.style.height = height <= 1 ? height * 100 + '%' : height + 'px'
+        this._div.style.display = "flex";
+        this._div.style.flexDirection = "column";
+        this._div.style.height = `calc(100vh - 20px)`;
+        this._div.style.overflow = "hidden";
 }

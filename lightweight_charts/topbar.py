@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict, Literal
+from typing import Dict, Literal, Callable, Optional
 
 from .util import jbool, Pane
 
@@ -8,7 +8,8 @@ ALIGN = Literal['left', 'right']
 
 
 class Widget(Pane):
-    def __init__(self, topbar, value, func: callable = None, convert_boolean=False):
+    def __init__(self, topbar, value, func: Optional[Callable] = None,
+                 convert_boolean=False):
         super().__init__(topbar.win)
         self.value = value
 
@@ -78,8 +79,14 @@ class MenuWidget(Widget):
 class ButtonWidget(Widget):
     def __init__(self, topbar, button, separator, align, toggle, func):
         super().__init__(topbar, value=False, func=func, convert_boolean=toggle)
-        self.run_script(
-            f'{self.id} = {topbar.id}.makeButton("{button}", "{self.id}", {jbool(separator)}, true, "{align}", {jbool(toggle)})')
+        params = ", ".join([f'"{button}"',
+                            f'"{self.id}"',
+                            str(jbool(separator)),
+                            "true",
+                            f'"{align}"',
+                            str(jbool(toggle))])
+        script = f'{self.id} = {topbar.id}.makeButton({params})'
+        self.run_script(script)
 
     def set(self, string):
         # self.value = string
@@ -107,22 +114,24 @@ class TopBar(Pane):
     def get(self, widget_name):
         return self._widgets.get(widget_name)
 
-    def switcher(self, name, options: tuple, default: str = None,
-                 align: ALIGN = 'left', func: callable = None):
+    def switcher(self, name, options: tuple, default: Optional[str] = None,
+                 align: ALIGN = 'left', func: Optional[Callable] = None):
         self._create()
-        self._widgets[name] = SwitcherWidget(self, options, default if default else options[0], align, func)
+        self._widgets[name] = SwitcherWidget(self, options, default if default else options[0],
+                                             align, func)
 
-    def menu(self, name, options: tuple, default: str = None, separator: bool = True,
-             align: ALIGN = 'left', func: callable = None):
+    def menu(self, name, options: tuple, default: Optional[str] = None, separator: bool = True,
+             align: ALIGN = 'left', func: Optional[Callable] = None):
         self._create()
-        self._widgets[name] = MenuWidget(self, options, default if default else options[0], separator, align, func)
+        self._widgets[name] = MenuWidget(self, options, default if default else options[0],
+                                         separator, align, func)
 
     def textbox(self, name: str, initial_text: str = '',
-                align: ALIGN = 'left', func: callable = None):
+                align: ALIGN = 'left', func: Optional[Callable] = None):
         self._create()
         self._widgets[name] = TextWidget(self, initial_text, align, func)
 
     def button(self, name, button_text: str, separator: bool = True,
-               align: ALIGN = 'left', toggle: bool = False, func: callable = None):
+               align: ALIGN = 'left', toggle: bool = False, func: Optional[Callable] = None):
         self._create()
         self._widgets[name] = ButtonWidget(self, button_text, separator, align, toggle, func)

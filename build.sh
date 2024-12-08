@@ -18,7 +18,12 @@ else
     echo -e "${WARNING}could not delete old dist files, continuing.."
 fi
 
-npx rollup -c rollup.config.js
+if which rollup > /dev/null 2>&1
+then rollup -c rollup.config.js
+else
+    npx rollup -c rollup.config.js
+fi
+
 if [[ $? -ne 0 ]]; then
     exit 1
 fi
