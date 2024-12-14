@@ -20,6 +20,7 @@ def make_js_point(chart, time, price):
         "price": {price}
     }}'''
 
+
 class Drawing(Pane):
     def __init__(self, chart, func=None):
         super().__init__(chart.win)
@@ -36,6 +37,7 @@ class Drawing(Pane):
         """
         Irreversibly deletes the drawing.
         """
+        print(f"Called for deletion of {self.id}")
         self.run_script(f'{self.id}.detach()')
 
     def options(self, color='#1E80F0', style='solid', width=4):
@@ -93,14 +95,28 @@ class HorizontalLine(Drawing):
             }},
             callbackName={f"'{self.id}'" if func else 'null'}
         )
-        {chart.id}.series.attachPrimitive({self.id})
+        if ({chart.id}.toolBox){{
+            {chart.id}.toolBox.addNewDrawing({self.id})
+        }} else {{
+            {chart.id}.series.attachPrimitive({self.id})
+        }}
         ''')
         if not func:
             return
 
-        def wrapper(p):
-            self.price = float(p)
-            func(chart, self)
+        def wrapper(*args):
+            if len(args) == 1:
+                try:
+                    self.price = float(args[0])
+                    func(chart, self)
+                except Exception:
+                    print(f"Could not parse event args {args}")
+            elif len(args) == 2:
+                try:
+                    cmd, price = args
+                    func(chart, self, cmd=cmd)
+                except Exception as e:
+                    print(f"Could not parse args {args}, Error {e}")
 
         async def wrapper_async(p):
             self.price = float(p)

@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import Union, Optional, Callable
+from typing import Optional, Callable
 
 from .util import jbool, Pane, NUM
 
@@ -34,18 +34,23 @@ class Row(dict):
             self[key] = val
 
     def __setitem__(self, column, value):
-        if isinstance(column, tuple):
-            [self.__setitem__(col, val) for col, val in zip(column, value)]
-            return
-        original_value = value
-        if column in self._table._formatters:
-            value = self._table._formatters[column].replace(self._table.VALUE, str(value))
-        self.run_script(f'{self._table.id}.updateCell("{self.id}", "{column}", "{value}")')
-        return super().__setitem__(column, original_value)
+        try:
+            if isinstance(column, tuple):
+                [self.__setitem__(col, val) for col, val in zip(column, value)]
+                return
+            original_value = value
+            if column in self._table._formatters:
+                value = self._table._formatters[column].replace(self._table.VALUE, str(value))
+            self.run_script(f'{self._table.id}.updateCell("{self.id}", "{column}", "{value}")')
+            return super().__setitem__(column, original_value)
+        except Exception as e:
+            print(f"Error in setting item {e}")
 
-    def background_color(self, column, color): self._style('backgroundColor', column, color)
+    def background_color(self, column, color):
+        self._style('backgroundColor', column, color)
 
-    def text_color(self, column, color): self._style('textColor', column, color)
+    def text_color(self, column, color):
+        self._style('color', column, color)
 
     def _style(self, style, column, arg):
         self.run_script(f"{self._table.id}.styleCell({self.id}, '{column}', '{style}', '{arg}')")
@@ -74,7 +79,8 @@ class Table(Pane, dict):
             heading_text_colors: Optional[tuple] = None,
             heading_background_colors: Optional[tuple] = None,
             return_clicked_cells: bool = False,
-            func: Optional[Callable] = None
+            func: Optional[Callable] = None,
+            table_id: Optional[str] = None
     ):
         dict.__init__(self)
         Pane.__init__(self, window)
@@ -109,21 +115,26 @@ class Table(Pane, dict):
             '{border_color}',
             {border_width},
             {list(heading_text_colors) if heading_text_colors else []},
-            {list(heading_background_colors) if heading_background_colors else []}
+            {list(heading_background_colors) if heading_background_colors else []},
+            '{table_id}'
         )''')
         self.run_script(f'{self.id}.callbackName = "{self.id}"') if func else None
+        self._table_id = table_id
+        if table_id:
+            self.win.handlers[table_id] = func
         self.footer = Section(self, 'footer')
         self.header = Section(self, 'header')
 
     def new_row(self, *values, id=None) -> Row:
         row_id = random.randint(0, 99_999_999) if not id else id
-        self[row_id] = Row(self, row_id, {heading: item for heading, item in zip(self.headings, values)})
+        self[row_id] = Row(self, row_id,
+                           {heading: item for heading, item in zip(self.headings, values)})
         return self[row_id]
 
     def clear(self):
         self.run_script(f"{self.id}.clearRows()"), super().clear()
 
-    def get(self, __key: Union[int, str]) -> Row:
+    def get(self, __key: int | str) -> Row:
         return super().get(int(__key))
 
     def __getitem__(self, item):

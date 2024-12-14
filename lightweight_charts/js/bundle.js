@@ -257,9 +257,9 @@ var Lib = (function (exports, lightweightCharts) {
             this.requestUpdate();
         }
         detached() {
-            this._chart = undefined;
-            this._series = undefined;
             this._requestUpdate = undefined;
+            // this._chart = undefined;
+            // this._series = undefined;
         }
         get chart() {
             return ensureDefined(this._chart);
@@ -330,12 +330,14 @@ var Lib = (function (exports, lightweightCharts) {
             this.requestUpdate();
         }
         detach() {
-            this._options.lineColor = 'transparent';
-            this.requestUpdate();
-            this.series.detachPrimitive(this);
             for (const s of this._listeners) {
                 document.body.removeEventListener(s.name, s.listener);
             }
+            this._listeners = [];
+            this._options.lineColor = 'transparent';
+            this.series.detachPrimitive(this);
+            this.requestUpdate();
+            this.detached();
         }
         get points() {
             return this._points;
@@ -636,10 +638,12 @@ var Lib = (function (exports, lightweightCharts) {
             switch (state) {
                 case InteractionState.NONE:
                     document.body.style.cursor = "default";
+                    this._subscribe('dblclick', this._onDoubleClick);
                     this._unsubscribe("mousedown", this._handleMouseDownInteraction);
                     break;
                 case InteractionState.HOVERING:
                     document.body.style.cursor = "pointer";
+                    this._subscribe('dblclick', this._onDoubleClick);
                     this._unsubscribe("mouseup", this._childHandleMouseUpInteraction);
                     this._subscribe("mousedown", this._handleMouseDownInteraction);
                     this.chart.applyOptions({ handleScroll: true });
@@ -651,6 +655,17 @@ var Lib = (function (exports, lightweightCharts) {
                     break;
             }
             this._state = state;
+        }
+        detach() {
+            window.callbackFunction(`${this._callbackName}_~_delete;;;${this._point.price.toFixed(8)}`);
+            this._moveToState = () => { };
+            this._handleMouseDownInteraction = () => { };
+            this._handleMouseUpInteraction = () => { };
+            this._childHandleMouseUpInteraction = () => { };
+            this._mouseIsOverDrawing = () => { };
+            this._onMouseDown = () => { };
+            this._onDoubleClick = () => { };
+            super.detach();
         }
         _onDrag(diff) {
             this._addDiffToPoint(this._point, 0, diff.price);
@@ -676,6 +691,22 @@ var Lib = (function (exports, lightweightCharts) {
             if (!this._callbackName)
                 return;
             window.callbackFunction(`${this._callbackName}_~_${this._point.price.toFixed(8)}`);
+        };
+        _onDoubleClick = () => {
+            const hoverPoint = this._latestHoverPoint;
+            if (!hoverPoint)
+                return;
+            // const isCtrlPressed = event.ctrlKey;
+            // const isAltPressed = event.altKey;
+            // const isShiftPressed = event.shiftKey;
+            // Example logic based on modifiers
+            // console.log(
+            //     "Double-click detected at:", hoverPoint,
+            //     "Modifiers:", { isCtrlPressed, isAltPressed, isShiftPressed }
+            // );
+            if (this._callbackName) {
+                window.callbackFunction(`${this._callbackName}_~_dblclick;;;${this._point.price.toFixed(8)}`);
+            }
         };
     }
 
@@ -715,9 +746,12 @@ var Lib = (function (exports, lightweightCharts) {
             if (d == null)
                 return;
             const idx = this._drawings.indexOf(d);
-            if (idx == -1)
-                return;
-            this._drawings.splice(idx, 1);
+            if (idx !== -1) {
+                this._drawings.splice(idx, 1);
+            }
+            else {
+                console.log("Index of drawing not found. Expect trouble");
+            }
             d.detach();
         }
         clearDrawings() {
@@ -1306,7 +1340,9 @@ var Lib = (function (exports, lightweightCharts) {
                     subMenu._div.style.display = 'none';
                 });
             }
-            let onClickDelete = () => this.drawingTool.delete(Drawing.lastHoveredObject);
+            let onClickDelete = () => {
+                this.drawingTool.delete(Drawing.lastHoveredObject);
+            };
             this.separator();
             this.menuItem('Delete Drawing', onClickDelete);
             // const colorPicker = new ColorPicker(this.saveDrawings)
@@ -2109,16 +2145,17 @@ var Lib = (function (exports, lightweightCharts) {
                 return;
             parentChart.chart.timeScale().subscribeVisibleLogicalRangeChange(setChildRange);
         }
-        static makeSearchBox(chart, moreItems) {
+        static makeSearchBox(chart, items) {
             const searchWindow = document.createElement('div');
             searchWindow.classList.add('searchbox');
             searchWindow.style.display = 'none';
-            console.log("Got items", moreItems);
-            let items = ['AAPL', 'GOOGL', 'TSLA'];
-            moreItems = moreItems.filter(item => !items.includes(item));
-            items = [...items, ...moreItems];
+            // console.log("Got items", moreItems);
+            // let items = ['AAPL', 'GOOGL', 'TSLA'];
+            // // moreItems from function call
+            // moreItems = moreItems.filter(item => ! items.includes(item));
+            // items = [...items, ...moreItems];
+            // console.log("Final items", items);
             items.sort();
-            console.log("Final items", items);
             const magnifyingGlass = document.createElement('div');
             magnifyingGlass.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
 <path style="fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:lightgray;" 
@@ -2189,41 +2226,6 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
                 results: resultsList,
             };
         }
-        // public static makeSearchBox(chart: Handler) {
-        //     const searchWindow = document.createElement('div')
-        //     searchWindow.classList.add('searchbox');
-        //     searchWindow.style.display = 'none';
-        //     const magnifyingGlass = document.createElement('div');
-        //     magnifyingGlass.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><path style="fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:lightgray;stroke-opacity:1;stroke-miterlimit:4;" d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 3 10 3 C 13.867188 3 17 6.132812 17 10 C 17 13.867188 13.867188 17 10 17 Z M 10 17 "/></svg>`
-        //     const sBox = document.createElement('input');
-        //     sBox.type = 'text';
-        //     searchWindow.appendChild(magnifyingGlass)
-        //     searchWindow.appendChild(sBox)
-        //     chart.div.appendChild(searchWindow);
-        //     chart.commandFunctions.push((event: KeyboardEvent) => {
-        //         if (window.handlerInFocus !== chart.id || window.textBoxFocused) return false
-        //         if (searchWindow.style.display === 'none') {
-        //             if (/^[a-zA-Z0-9]$/.test(event.key)) {
-        //                 searchWindow.style.display = 'flex';
-        //                 sBox.focus();
-        //                 return true
-        //             }
-        //             else return false
-        //         }
-        //         else if (event.key === 'Enter' || event.key === 'Escape') {
-        //             if (event.key === 'Enter') window.callbackFunction(`search${chart.id}_~_${sBox.value}`)
-        //             searchWindow.style.display = 'none'
-        //             sBox.value = ''
-        //             return true
-        //         }
-        //         else return false
-        //     })
-        //     sBox.addEventListener('input', () => sBox.value = sBox.value.toUpperCase())
-        //     return {
-        //         window: searchWindow,
-        //         box: sBox,
-        //     }
-        // }
         static makeSpinner(chart) {
             chart.spinner = document.createElement('div');
             chart.spinner.classList.add('spinner');
@@ -2260,6 +2262,7 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
 
     class Table {
         _div;
+        _root_id;
         callbackName;
         borderColor;
         borderWidth;
@@ -2270,8 +2273,9 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
         alignments;
         footer;
         header;
-        constructor(width, height, headings, widths, alignments, position, draggable = false, tableBackgroundColor, borderColor, borderWidth, textColors, backgroundColors) {
+        constructor(width, height, headings, widths, alignments, position, draggable = false, tableBackgroundColor, borderColor, borderWidth, textColors, backgroundColors, id = null) {
             this._div = document.createElement('div');
+            this._root_id = id;
             this.callbackName = null;
             this.borderColor = borderColor;
             this.borderWidth = borderWidth;
@@ -2315,6 +2319,8 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
                 th.style.top = '0';
                 th.style.backgroundColor = backgroundColors.length > 0 ? backgroundColors[i] : tableBackgroundColor;
                 th.style.color = textColors[i];
+                th.addEventListener('click', () => window.callbackFunction(`${this._root_id}_~_heading;;;${this.headings[i]}`));
+                console.log(this._div, this._root_id);
                 row.appendChild(th);
             }
             let overflowWrapper = document.createElement('div');
@@ -2381,8 +2387,76 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
         _getCell(rowId, column) {
             return this.rows[rowId].cells[this.headings.indexOf(column)];
         }
-        updateCell(rowId, column, val) {
+        bulkUpdateColumns(rowIds, vals, columns, styles = Array()) {
+            for (let i = 0; i < rowIds.length; i++) {
+                const rowId = rowIds[i];
+                for (let j = 0; j < columns.length; j++) {
+                    const cell = this.rows[rowId].cells[this.headings.indexOf(columns[j])];
+                    cell.textContent = vals[i][j];
+                    if (styles.length > 0) {
+                        const style = styles[i];
+                        if (j in style) {
+                            const styleAttribute = style[j]["style"];
+                            const value = style[j]["value"];
+                            const oldStyle = cell.style;
+                            oldStyle[styleAttribute] = value;
+                        }
+                    }
+                }
+            }
+        }
+        bulkUpdateCells(rowIds, vals, styles = Array()) {
+            for (let i = 0; i < rowIds.length; i++) {
+                const rowId = rowIds[i];
+                for (let j = 0; j < this.headings.length; j++) {
+                    const cell = this.rows[rowId].cells[j];
+                    cell.textContent = vals[i][j];
+                    if (styles.length > 0) {
+                        const style = styles[i];
+                        if (j in style) {
+                            const styleAttribute = styles[j]["style"];
+                            const value = styles[j]["value"];
+                            const oldStyle = cell.style;
+                            oldStyle[styleAttribute] = value;
+                        }
+                    }
+                }
+            }
+        }
+        bulkUpdateStyles(rowIds, styles) {
+            for (let i = 0; i < rowIds.length; i++) {
+                const rowId = rowIds[i];
+                for (let j = 0; j < this.headings.length; j++) {
+                    if (j in styles[i]) {
+                        const cell = this.rows[rowId].cells[j];
+                        const styleAttribute = styles[i][j]["style"];
+                        const value = styles[i][j]["value"];
+                        const oldStyle = cell.style;
+                        oldStyle[styleAttribute] = value;
+                    }
+                }
+            }
+        }
+        updateRow(rowId, vals, styles = null) {
+            for (let i = 0; i < this.headings.length; i++) {
+                const cell = this.rows[rowId].cells[i];
+                cell.textContent = vals[i];
+                if (styles !== null) {
+                    const styleAttribute = styles[i]["style"];
+                    const value = styles[i]["value"];
+                    const oldStyle = cell.style;
+                    oldStyle[styleAttribute] = value;
+                }
+            }
+        }
+        updateCell(rowId, column, val, style = null) {
             this._getCell(rowId, column).textContent = val;
+            if (style !== null) {
+                const styleAttribute = style["style"];
+                const value = style["value"];
+                const oldStyle = this._getCell(rowId, column).style;
+                oldStyle[styleAttribute] = value;
+            }
         }
         styleCell(rowId, column, styleAttribute, value) {
             const style = this._getCell(rowId, column).style;

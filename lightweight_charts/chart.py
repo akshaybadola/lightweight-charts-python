@@ -21,11 +21,12 @@ class CallbackAPI:
 
 
 class PyWV:
-    def __init__(self, q, emit_q, return_q, loaded_event):
+    def __init__(self, q, emit_q, return_q, loaded_event, debug=False):
         self.queue = q
         self.return_queue = return_q
         self.emit_queue = emit_q
         self.loaded_event = loaded_event
+        self.debug = debug
 
         self.is_alive = True
 
@@ -66,7 +67,7 @@ class PyWV:
             i, arg = self.queue.get()
 
             if i == 'start':
-                webview.start(debug=arg, func=self.loop)
+                webview.start(debug=self.debug, func=self.loop)
                 self.is_alive = False
                 self.emit_queue.put('exit')
                 return
@@ -93,9 +94,9 @@ class PyWV:
 
 
 class WebviewHandler():
-    def __init__(self) -> None:
+    def __init__(self, debug=False) -> None:
+        self.debug = debug
         self._reset()
-        self.debug = False
 
     def _reset(self):
         self.loaded_event = mp.Event()
@@ -105,9 +106,10 @@ class WebviewHandler():
         self.wv_process = mp.Process(
             target=PyWV, args=(
                 self.function_call_queue, self.emit_queue,
-                self.return_queue, self.loaded_event
+                self.return_queue, self.loaded_event,
             ),
-            daemon=True
+            kwargs={"debug": self.debug},
+            daemon=True,
         )
         self.max_window_num = -1
 
@@ -146,7 +148,13 @@ class WebviewHandler():
 
 class Chart(abstract.AbstractChart):
     _main_window_handlers = None
+    debug = False
     WV: WebviewHandler = WebviewHandler()
+
+    @classmethod
+    def set_debug(cls, debug):
+        cls.debug = debug
+        cls.WV = WebviewHandler(cls.debug)
 
     def __init__(
         self,
@@ -163,9 +171,8 @@ class Chart(abstract.AbstractChart):
         inner_width: float = 1.0,
         inner_height: float = 1.0,
         scale_candles_only: bool = False,
-        position: FLOAT = 'left'
+        position: FLOAT = 'left',
     ):
-        Chart.WV.debug = debug
         self._i = Chart.WV.create_window(
                     width, height, x, y, screen, on_top, maximize, title
                 )

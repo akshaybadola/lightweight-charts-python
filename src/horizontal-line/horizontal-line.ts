@@ -53,11 +53,13 @@ export class HorizontalLine extends Drawing {
         switch(state) {
             case InteractionState.NONE:
                 document.body.style.cursor = "default";
+                this._subscribe('dblclick', this._onDoubleClick);
                 this._unsubscribe("mousedown", this._handleMouseDownInteraction);
                 break;
 
             case InteractionState.HOVERING:
                 document.body.style.cursor = "pointer";
+                this._subscribe('dblclick', this._onDoubleClick);
                 this._unsubscribe("mouseup", this._childHandleMouseUpInteraction);
                 this._subscribe("mousedown", this._handleMouseDownInteraction)
                 this.chart.applyOptions({handleScroll: true});
@@ -70,6 +72,18 @@ export class HorizontalLine extends Drawing {
                 break;
         }
         this._state = state;
+    }
+
+    detach(){
+        window.callbackFunction(`${this._callbackName}_~_delete;;;${this._point.price.toFixed(8)}`);
+        this._moveToState = () => {};
+        this._handleMouseDownInteraction = () => {};
+        this._handleMouseUpInteraction = () => {};
+        this._childHandleMouseUpInteraction = () => {};
+        this._mouseIsOverDrawing = () => {};
+        this._onMouseDown = () => {};
+        this._onDoubleClick = () => {};
+        super.detach();
     }
 
     _onDrag(diff: any) {
@@ -96,4 +110,23 @@ export class HorizontalLine extends Drawing {
         if (!this._callbackName) return;
         window.callbackFunction(`${this._callbackName}_~_${this._point.price.toFixed(8)}`);
     }
+
+    protected _onDoubleClick = () => {
+        const hoverPoint = this._latestHoverPoint;
+        if (!hoverPoint) return;
+
+        // const isCtrlPressed = event.ctrlKey;
+        // const isAltPressed = event.altKey;
+        // const isShiftPressed = event.shiftKey;
+
+        // Example logic based on modifiers
+        // console.log(
+        //     "Double-click detected at:", hoverPoint,
+        //     "Modifiers:", { isCtrlPressed, isAltPressed, isShiftPressed }
+        // );
+
+        if (this._callbackName) {
+            window.callbackFunction(`${this._callbackName}_~_dblclick;;;${this._point.price.toFixed(8)}`);
+        }
+    };
 }

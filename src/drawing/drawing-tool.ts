@@ -53,8 +53,11 @@ export class DrawingTool {
     delete(d: Drawing | null) {
         if (d == null) return;
         const idx = this._drawings.indexOf(d);
-        if (idx == -1) return;
-        this._drawings.splice(idx, 1)
+        if (idx !== -1){
+            this._drawings.splice(idx, 1)
+        } else{
+            console.log("Index of drawing not found. Expect trouble")
+        }
         d.detach();
     }
 

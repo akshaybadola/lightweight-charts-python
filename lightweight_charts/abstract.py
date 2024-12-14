@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Callable, Union, Literal, List, Optional
 import pandas as pd
 
+from .fast_table import FastTable
 from .table import Table
 from .toolbox import ToolBox
 from .drawings import Box, HorizontalLine, RayLine, TrendLine, TwoPointDrawing, VerticalLine, VerticalSpan
@@ -79,23 +80,12 @@ class Window:
         return self._return_q.get()
 
     def create_table(
-        self,
-        width: NUM,
-        height: NUM,
-        headings: tuple,
-        widths: Optional[tuple] = None,
-        alignments: Optional[tuple] = None,
-        position: FLOAT = 'left',
-        draggable: bool = False,
-        background_color: str = '#121417',
-        border_color: str = 'rgb(70, 70, 70)',
-        border_width: int = 1,
-        heading_text_colors: Optional[tuple] = None,
-        heading_background_colors: Optional[tuple] = None,
-        return_clicked_cells: bool = False,
-        func: Optional[Callable] = None
-    ) -> 'Table':
-        return Table(*locals().values())
+            self, fast, **table_kwargs
+    ) -> Table | FastTable:
+        if fast:
+            return FastTable(self, **table_kwargs)
+        else:
+            return Table(self, **table_kwargs)
 
     def create_subchart(
         self,
@@ -425,7 +415,8 @@ class SeriesCommon(Pane):
 
 
 class Line(SeriesCommon):
-    def __init__(self, chart, name, color, style, width, price_line, price_label, price_scale_id=None, crosshair_marker=True):
+    def __init__(self, chart, name, color, style, width, price_line,
+                 price_label, price_scale_id=None, crosshair_marker=True):
 
         super().__init__(chart, name)
         self.color = color
@@ -728,7 +719,8 @@ class AbstractChart(Candlestick, Pane):
     def create_line(
             self, name: str = '', color: str = 'rgba(214, 237, 255, 0.6)',
             style: LINE_STYLE = 'solid', width: int = 2,
-            price_line: bool = True, price_label: bool = True, price_scale_id: Optional[str] = None
+            price_line: bool = True, price_label: bool = True,
+            price_scale_id: Optional[str] = None
     ) -> Line:
         """
         Creates and returns a Line object.
@@ -928,25 +920,11 @@ class AbstractChart(Candlestick, Pane):
         self.win.handlers[f'{modifier_key, keys}'] = func
 
     def create_table(
-        self,
-        width: NUM,
-        height: NUM,
-        headings: tuple,
-        widths: Optional[tuple] = None,
-        alignments: Optional[tuple] = None,
-        position: FLOAT = 'left',
-        draggable: bool = False,
-        background_color: str = '#121417',
-        border_color: str = 'rgb(70, 70, 70)',
-        border_width: int = 1,
-        heading_text_colors: Optional[tuple] = None,
-        heading_background_colors: Optional[tuple] = None,
-        return_clicked_cells: bool = False,
-        func: Optional[Callable] = None
-    ) -> Table:
-        args = locals()
-        del args['self']
-        return self.win.create_table(*args.values())
+        self, *,
+        fast: bool = False,
+        **table_kwargs,
+    ) -> Table | FastTable:
+        return self.win.create_table(fast, **table_kwargs)
 
     def screenshot(self) -> bytes:
         """

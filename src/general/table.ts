@@ -7,9 +7,15 @@ interface RowDictionary {
     [key: number]: HTMLTableRowElement;
 }
 
+type rowStyleType = {
+    i: number;
+    style: string;
+    value: string;
+}
 
 export class Table {
     private _div: HTMLDivElement;
+    private _root_id: string | null;
     private callbackName: string | null;
 
     private borderColor: string;
@@ -23,9 +29,12 @@ export class Table {
     public footer: HTMLDivElement[] | undefined;
     public header: HTMLDivElement[] | undefined;
 
-    constructor(width: number, height: number, headings: string[], widths: number[], alignments: string[], position: string, draggable = false,
-                tableBackgroundColor: string, borderColor: string, borderWidth: number, textColors: string[], backgroundColors: string[]) {
+    constructor(width: number, height: number, headings: string[],
+                widths: number[], alignments: string[], position: string, draggable = false,
+                tableBackgroundColor: string, borderColor: string, borderWidth: number,
+                textColors: string[], backgroundColors: string[], id=null) {
         this._div = document.createElement('div')
+        this._root_id = id
         this.callbackName = null
         this.borderColor = borderColor
         this.borderWidth = borderWidth
@@ -73,6 +82,9 @@ export class Table {
             th.style.top = '0'
             th.style.backgroundColor = backgroundColors.length > 0 ? backgroundColors[i] : tableBackgroundColor
             th.style.color = textColors[i]
+            th.addEventListener('click', () => window.callbackFunction(
+                `${this._root_id}_~_heading;;;${this.headings[i]}`))
+            console.log(this._div, this._root_id);
             row.appendChild(th)
         }
 
@@ -153,8 +165,82 @@ export class Table {
         return this.rows[rowId].cells[this.headings.indexOf(column)];
     }
 
-    updateCell(rowId: number, column: string, val: string) {
+    bulkUpdateColumns(rowIds: number[], vals: string[][], columns: string[],
+                      styles: rowStyleType[] = Array()){
+        for (let i = 0; i < rowIds.length; i++){
+            const rowId = rowIds[i];
+            for (let j = 0; j < columns.length; j++){
+                const cell = this.rows[rowId].cells[this.headings.indexOf(columns[j])];
+                cell.textContent = vals[i][j];
+                if (styles.length > 0){
+                    const style = styles[i];
+                    if (j in style) {
+                        const styleAttribute = style[j]["style"];
+                        const value = style[j]["value"];
+                        const oldStyle = cell.style;
+                        (oldStyle as any)[styleAttribute] = value;
+                    }
+                }
+            }
+        }
+    }
+
+    bulkUpdateCells(rowIds: number[], vals: string[], styles: rowStyleType[] = Array()){
+        for (let i = 0; i < rowIds.length; i++){
+            const rowId = rowIds[i];
+            for (let j = 0; j < this.headings.length; j++){
+                const cell = this.rows[rowId].cells[j];
+                cell.textContent = vals[i][j];
+                if (styles.length > 0){
+                    const style = styles[i];
+                    if (j in style) {
+                        const styleAttribute = styles[j]["style"];
+                        const value = styles[j]["value"];
+                        const oldStyle = cell.style;
+                        (oldStyle as any)[styleAttribute] = value;
+                    }
+                }
+            }
+        }
+    }
+
+    bulkUpdateStyles(rowIds: number[], styles: rowStyleType[]) {
+        for (let i = 0; i < rowIds.length; i++){
+            const rowId = rowIds[i];
+            for (let j = 0; j < this.headings.length; j++){
+                if (j in styles[i]) {
+                    const cell = this.rows[rowId].cells[j];
+                    const styleAttribute = styles[i][j]["style"];
+                    const value = styles[i][j]["value"];
+                    const oldStyle = cell.style;
+                    (oldStyle as any)[styleAttribute] = value;
+                }
+            }
+        }
+    }
+
+    updateRow(rowId: number, vals: string[], styles = null) {
+        for (let i = 0; i < this.headings.length; i++){
+            const cell = this.rows[rowId].cells[i]
+            cell.textContent = vals[i];
+            if (styles !== null) {
+                const styleAttribute = styles[i]["style"];
+                const value = styles[i]["value"];
+                const oldStyle = cell.style;
+                (oldStyle as any)[styleAttribute] = value;
+
+            }
+        }
+    }
+
+    updateCell(rowId: number, column: string, val: string, style=null) {
         this._getCell(rowId, column).textContent = val;
+        if (style !== null){
+            const styleAttribute = style["style"];
+            const value = style["value"];
+            const oldStyle = this._getCell(rowId, column).style;
+            (oldStyle as any)[styleAttribute] = value;
+        }
     }
 
     styleCell(rowId: number, column: string, styleAttribute: string, value: string) {
@@ -199,4 +285,5 @@ export class Table {
         this._div.style.flexDirection = "column";
         this._div.style.height = `calc(100vh - 20px)`;
         this._div.style.overflow = "hidden";
+    }
 }

@@ -74,13 +74,14 @@ export abstract class Drawing extends PluginBase {
     }
 
     detach() {
-        this._options.lineColor = 'transparent';
-        this.requestUpdate();
-        this.series.detachPrimitive(this);
         for (const s of this._listeners) {
             document.body.removeEventListener(s.name, s.listener);
         }
-
+        this._listeners = [];
+        this._options.lineColor = 'transparent';
+        this.series.detachPrimitive(this);
+        this.requestUpdate();
+        this.detached();
     }
 
     get points() {

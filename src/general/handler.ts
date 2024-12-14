@@ -77,13 +77,13 @@ export class Handler {
 
         this.wrapper.appendChild(this.div);
         window.containerDiv.append(this.wrapper)
-        
+
         this.chart = this._createChart();
         this.series = this.createCandlestickSeries();
         this.volumeSeries = this.createVolumeSeries();
 
         this.legend = new Legend(this)
-        
+
         document.addEventListener('keydown', (event) => {
             for (let i = 0; i < this.commandFunctions.length; i++) {
                 if (this.commandFunctions[i](event)) break
@@ -103,7 +103,7 @@ export class Handler {
         this.chart.resize(window.innerWidth * this.scale.width, (window.innerHeight * this.scale.height) - topBarOffset)
         this.wrapper.style.width = `${100 * this.scale.width}%`
         this.wrapper.style.height = `${100 * this.scale.height}%`
-        
+
         // TODO definitely a better way to do this
         if (this.scale.height === 0 || this.scale.width === 0) {
             // if (this.legend.div.style.display == 'flex') this.legend.div.style.display = 'none'
@@ -292,17 +292,18 @@ export class Handler {
         parentChart.chart.timeScale().subscribeVisibleLogicalRangeChange(setChildRange)
     }
 
-    public static makeSearchBox(chart: Handler, moreItems: []) {
+    public static makeSearchBox(chart: Handler, items: []) {
         const searchWindow = document.createElement('div');
         searchWindow.classList.add('searchbox');
         searchWindow.style.display = 'none';
 
-        console.log("Got items", moreItems);
-        let items = ['AAPL', 'GOOGL', 'TSLA'];
-        moreItems = moreItems.filter(item => ! items.includes(item));
-        items = [...items, ...moreItems];
+        // console.log("Got items", moreItems);
+        // let items = ['AAPL', 'GOOGL', 'TSLA'];
+        // // moreItems from function call
+        // moreItems = moreItems.filter(item => ! items.includes(item));
+        // items = [...items, ...moreItems];
+        // console.log("Final items", items);
         items.sort();
-        console.log("Final items", items);
         const magnifyingGlass = document.createElement('div');
         magnifyingGlass.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" version="1.1">
 <path style="fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:lightgray;" 
@@ -378,46 +379,6 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
             results: resultsList,
         };
     }
-
-    // public static makeSearchBox(chart: Handler) {
-    //     const searchWindow = document.createElement('div')
-    //     searchWindow.classList.add('searchbox');
-    //     searchWindow.style.display = 'none';
-
-    //     const magnifyingGlass = document.createElement('div');
-    //     magnifyingGlass.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" viewBox="0 0 24 24" version="1.1"><path style="fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:lightgray;stroke-opacity:1;stroke-miterlimit:4;" d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 3 10 3 C 13.867188 3 17 6.132812 17 10 C 17 13.867188 13.867188 17 10 17 Z M 10 17 "/></svg>`
-
-    //     const sBox = document.createElement('input');
-    //     sBox.type = 'text';
-
-    //     searchWindow.appendChild(magnifyingGlass)
-    //     searchWindow.appendChild(sBox)
-    //     chart.div.appendChild(searchWindow);
-
-    //     chart.commandFunctions.push((event: KeyboardEvent) => {
-    //         if (window.handlerInFocus !== chart.id || window.textBoxFocused) return false
-    //         if (searchWindow.style.display === 'none') {
-    //             if (/^[a-zA-Z0-9]$/.test(event.key)) {
-    //                 searchWindow.style.display = 'flex';
-    //                 sBox.focus();
-    //                 return true
-    //             }
-    //             else return false
-    //         }
-    //         else if (event.key === 'Enter' || event.key === 'Escape') {
-    //             if (event.key === 'Enter') window.callbackFunction(`search${chart.id}_~_${sBox.value}`)
-    //             searchWindow.style.display = 'none'
-    //             sBox.value = ''
-    //             return true
-    //         }
-    //         else return false
-    //     })
-    //     sBox.addEventListener('input', () => sBox.value = sBox.value.toUpperCase())
-    //     return {
-    //         window: searchWindow,
-    //         box: sBox,
-    //     }
-    // }
 
     public static makeSpinner(chart: Handler) {
         chart.spinner = document.createElement('div');

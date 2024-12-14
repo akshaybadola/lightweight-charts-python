@@ -77,7 +77,9 @@ export class ContextMenu {
             })
         }
 
-        let onClickDelete = () => this.drawingTool.delete(Drawing.lastHoveredObject);
+        let onClickDelete = () => {
+            this.drawingTool.delete(Drawing.lastHoveredObject);
+        };
         this.separator()
         this.menuItem('Delete Drawing', onClickDelete)
 
