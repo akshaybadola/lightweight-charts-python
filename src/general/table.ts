@@ -248,6 +248,17 @@ export class Table {
         (style as any)[styleAttribute] = value;
     }
 
+    flashRow(rowId: number){
+        const row = this.rows[rowId];
+        row.classList.add('flash');
+        console.log(row.classList);
+    }
+
+    stopFlashRow(rowId: number){
+        const row = this.rows[rowId];
+        row.classList.remove('flash');
+    }
+
     makeSection(id: string, type: string, numBoxes: number, func=false) {
         let section = document.createElement('div')
         section.style.display = 'flex'

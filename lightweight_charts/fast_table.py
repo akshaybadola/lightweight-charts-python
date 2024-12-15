@@ -123,6 +123,29 @@ class FastTable(Pane):
     def keys(self):
         return [*self._rows_cache.row_id]
 
+    def set_row_background_color(self, indx, column, color):
+        self._style('backgroundColor', column, color)
+
+    def set_row_text_color(self, indx, column, color):
+        self._style('color', column, color)
+
+    def delete_row(self):
+        self.run_script(f"{self.id}.deleteRow('{self.id}')")
+
+    def flash_row(self, row_indx):
+        row_id = self.keys()[row_indx]
+        self.run_script(f"{self.id}.flashRow({row_id})")
+
+    def stop_flash_row(self, row_indx_or_sym: int | str):
+        if isinstance(row_indx_or_sym, int):
+            row_id = self.keys()[row_indx_or_sym]
+        else:
+            row_id = self._rows_cache[self._rows_cache.Sym == row_indx_or_sym].row_id.item()
+        self.run_script(f"{self.id}.stopFlashRow({int(row_id)})")
+
+    def _style(self, style, column, arg):
+        self.run_script(f"{self.id}.styleCell({self.id}, '{column}', '{style}', '{arg}')")
+
     def get(self, key: int):
         with self._rows_cache_lock:
             return self._rows_cache[self._rows_cache.row_id == key]

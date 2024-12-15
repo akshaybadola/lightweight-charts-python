@@ -20,6 +20,10 @@ import { GlobalParams, globalParamInit } from "./global-params";
 import { Legend } from "./legend";
 import { ToolBox } from "./toolbox";
 import { TopBar } from "./topbar";
+import { UserPriceAlerts } from "../user-price-alerts/user-price-alerts";
+import { UserAlertInfo } from "../user-price-alerts/state";
+import { VolumeProfile } from "../volume-profile/volume-profile";
+import { DeltaTooltipPrimitive } from '../delta-tooltip/delta-tooltip';
 
 
 export interface Scale{
@@ -49,6 +53,8 @@ export class Handler {
     private _topBar: TopBar | undefined;
     public toolBox: ToolBox | undefined;
     public spinner: HTMLDivElement | undefined;
+
+    public alerts: UserPriceAlerts[] = [];
 
     public _seriesList: ISeriesApi<SeriesType>[] = [];
 
@@ -96,7 +102,6 @@ export class Handler {
         if (!autoSize) return
         window.addEventListener('resize', () => this.reSize())
     }
-
 
     reSize() {
         let topBarOffset = this.scale.height !== 0 ? this._topBar?._div.offsetHeight || 0 : 0
@@ -207,6 +212,61 @@ export class Handler {
         this.wrapper.prepend(this._topBar._div)
         return this._topBar;
     }
+
+    createVolumeProfile(data: Object[]){
+        const options = {color: 'rgba(214, 237, 255, 0.6)',
+                         lineStye: 0,
+                         lineWidth: 2,
+                         lastValueVisible: true,
+                         priceLineVisible: true,
+                         crosshairMarkerVisible: true,
+                         priceScaleId: undefined};
+        const line = this.createLineSeries("price", options);
+        line.series.setData(data);
+        console.log("Created line with data", data);
+        const basePrice = data[data.length - 5].value;
+        const priceStep = Math.round(basePrice * 0.1);
+        const profile = []
+        for (let i = 0; i < 10; i++) {
+            profile.push({
+                price: basePrice + i * priceStep,
+                vol: Math.round(Math.random() * 20),
+            });
+        }
+        console.log("volume profile PROFILE", profile);
+        const vpData = {
+            time: data[0].time,
+            profile,
+            width: 10, // number of bars width
+        };
+
+        console.log("voluem profile VPDATA", vpData);
+        const volumeProfile = new VolumeProfile(this.chart, line.series, vpData);
+        line.series.attachPrimitive(volumeProfile);
+    }
+
+    createUserPriceAlert (symbol: string) {
+        const alert = new UserPriceAlerts();
+        alert.setSymbolName(symbol);
+        this.series.attachPrimitive(alert);
+        alert.alertAdded().subscribe((alertInfo: UserAlertInfo) => {
+            console.log(
+                `➕ Alert added @ ${alertInfo.price} with the id: ${alertInfo.id}`
+            );
+        });
+        alert.alertRemoved().subscribe((id: string) => {
+            console.log(`❌ Alert removed with the id: ${id}`);
+        });
+        this.alerts.push(alert);
+    };
+
+    createDeltaToolTip () {
+        const tooltip = new DeltaTooltipPrimitive({
+	          lineColor: 'rgba(150, 150, 150, 0.2)',
+        });
+        this.series.attachPrimitive(tooltip);
+    };
+
 
     toJSON() {
         // Exclude the chart attribute from serialization

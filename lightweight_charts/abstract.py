@@ -300,12 +300,13 @@ class SeriesCommon(Pane):
 
     def horizontal_line(self, price: NUM, color: str = 'rgb(122, 146, 202)', width: int = 2,
                         style: LINE_STYLE = 'solid', text: str = '', axis_label_visible: bool = True,
-                        func: Optional[Callable] = None
+                        func: Optional[Callable] = None, id=None
                         ) -> 'HorizontalLine':
         """
         Creates a horizontal line at the given price.
         """
-        return HorizontalLine(self, price, color, width, style, text, axis_label_visible, func)
+        line_id = random.randint(0, 99_999_999)
+        return HorizontalLine(self, line_id, price, color, width, style, text, axis_label_visible, func)
 
     def trend_line(
         self,
@@ -554,6 +555,12 @@ class Candlestick(SeriesCommon):
         volume.loc[df['close'] > df['open'], 'color'] = self._volume_up_color
         self.run_script(f'{self.id}.volumeSeries.setData({js_data(volume)})')
 
+        # TODO: Separate user data from market data
+        #       E.g. Orders or other lines which are placed by the user,
+        #       WHICH ARE NOT YET EXECUTED should be saved and restored
+
+        #       While ORDERS WHICH HAVE BEEN EXECUTED, should be there as markers
+        #       which can be fetched from the service.
         for line in self._lines:
             if line.name not in df.columns:
                 continue
@@ -597,7 +604,8 @@ class Candlestick(SeriesCommon):
         """
         series = self._series_datetime_format(series)
         if series['time'] < self._last_bar['time']:
-            raise ValueError(f'Trying to update tick of time "{pd.to_datetime(series["time"])}", which occurs before the last bar time of "{pd.to_datetime(self._last_bar["time"])}".')
+            raise ValueError(f'Trying to update tick of time "{pd.to_datetime(series["time"])}", '
+                             f'which occurs before the last bar time of "{pd.to_datetime(self._last_bar["time"])}".')
         bar = pd.Series(dtype='float64')
         if series['time'] == self._last_bar['time']:
             bar = self._last_bar
@@ -943,3 +951,17 @@ class AbstractChart(Candlestick, Pane):
         args = locals()
         del args['self']
         return self.win.create_subchart(*args.values())
+
+    def create_price_alert(self, symbol):
+        self.run_script(f'{self.id}.createUserPriceAlert("{symbol}");')
+
+    def create_volume_profile(self, data):
+        price = data[["last_trade_time", "last_price"]]\
+            .set_index("last_trade_time").resample("1min").mean()
+        df = price.bfill().reset_index().rename(
+            columns={"last_trade_time": "time", "last_price": "value"})
+        df["time"] = df.time.map(lambda x: x.timestamp())
+        self.run_script(f'{self.id}.createVolumeProfile({js_data(df)});')
+
+    def create_tool_tip(self):
+        self.run_script(f'{self.id}.createDeltaToolTip();')

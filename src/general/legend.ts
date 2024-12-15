@@ -1,4 +1,5 @@
-import { ISeriesApi, LineData, Logical, MouseEventParams, PriceFormatBuiltIn, SeriesType } from "lightweight-charts";
+import { ISeriesApi, LineData, Logical, MouseEventParams,
+         PriceFormatBuiltIn, SeriesType } from "lightweight-charts";
 import { Handler } from "./handler";
 
 
@@ -39,7 +40,7 @@ export class Legend {
         this.div.classList.add("legend")
         this.div.style.maxWidth = `${(handler.scale.width * 100) - 8}vw`
         this.div.style.display = 'none';
-        
+
         const seriesWrapper = document.createElement('div');
         seriesWrapper.style.display = 'flex';
         seriesWrapper.style.flexDirection = 'row';
@@ -49,7 +50,7 @@ export class Legend {
         this.text = document.createElement('span')
         this.text.style.lineHeight = '1.8'
         this.candle = document.createElement('div')
-        
+
         seriesWrapper.appendChild(this.seriesContainer);
         this.div.appendChild(this.text)
         this.div.appendChild(this.candle)
@@ -142,13 +143,28 @@ export class Legend {
         return num.toString().padStart(8, ' ');
     }
 
+    setBgWhite(){
+        this.div.style.background = "rgb(255, 255, 255)";
+    }
+
+    setBgBlack(){
+        this.div.style.background = "rgb(0, 0, 0)";
+    }
+
     legendHandler(param: MouseEventParams, usingPoint= false) {
-        if (!this.ohlcEnabled && !this.linesEnabled && !this.percentEnabled) return;
+        this.setBgWhite();
+        if (!this.ohlcEnabled && !this.linesEnabled && !this.percentEnabled){
+            this.div.style.background = "rgb(0, 0, 0)";
+            this.setBgWhite();
+            return;
+        }
         const options: any = this.handler.series.options()
 
         if (!param.time) {
+            this.div.style.background = "rgb(0, 0, 0)";
             this.candle.style.color = 'transparent'
             this.candle.innerHTML = this.candle.innerHTML.replace(options['upColor'], '').replace(options['downColor'], '')
+            this.setBgBlack();
             return
         }
 
@@ -202,6 +218,7 @@ export class Legend {
                 }
             }
         }
+
         this.candle.innerHTML = str + '</span>'
 
         this._lines.forEach((e) => {

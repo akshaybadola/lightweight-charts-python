@@ -17,6 +17,16 @@ body {
             Cantarell, "Helvetica Neue", sans-serif;
 }
 
+.flash {
+    animation: flash 1s ease-in-out infinite;
+}
+
+@keyframes flash {
+    0% { background-color: lightblue; }
+    50% { background-color: yellow; }
+    100% { background-color: lightblue; }
+}
+
 .handler {
 	display: flex;
 	flex-direction: column;

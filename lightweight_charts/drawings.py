@@ -8,6 +8,7 @@ from lightweight_charts.util import js_json
 
 from .util import NUM, Pane, as_enum, LINE_STYLE, TIME, snake_to_camel
 
+
 def make_js_point(chart, time, price):
     formatted_time = chart._single_datetime_format(time)
     return f'''{{
@@ -49,22 +50,9 @@ class Drawing(Pane):
 
 
 class TwoPointDrawing(Drawing):
-    def __init__(
-        self,
-        drawing_type,
-        chart,
-        start_time: TIME,
-        start_value: NUM,
-        end_time: TIME,
-        end_value: NUM,
-        round: bool,
-        options: dict,
-        func=None
-    ):
+    def __init__(self, drawing_type, chart, start_time: TIME, start_value: NUM,
+                 end_time: TIME, end_value: NUM, round: bool, options: dict, func=None):
         super().__init__(chart, func)
-
-
-
         options_string = '\n'.join(f'{key}: {val},' for key, val in options.items())
 
         self.run_script(f'''
@@ -80,8 +68,9 @@ class TwoPointDrawing(Drawing):
 
 
 class HorizontalLine(Drawing):
-    def __init__(self, chart, price, color, width, style, text, axis_label_visible, func):
+    def __init__(self, line_id, chart, price, color, width, style, text, axis_label_visible, func):
         super().__init__(chart, func)
+        self.line_id = line_id
         self.price = price
         self.run_script(f'''
 
@@ -138,10 +127,10 @@ class HorizontalLine(Drawing):
         self.run_script(f'{self.id}.applyOptions({{text: `{text}`}})')
 
 
-
 class VerticalLine(Drawing):
-    def __init__(self, chart, time, color, width, style, text, func=None):
+    def __init__(self, line_id, chart, time, color, width, style, text, func=None):
         super().__init__(chart, func)
+        self.line_id = line_id
         self.time = time
         self.run_script(f'''
 
@@ -169,18 +158,11 @@ class VerticalLine(Drawing):
 
 
 class RayLine(Drawing):
-    def __init__(self,
-        chart,
-        start_time: TIME,
-        value: NUM,
-        round: bool = False,
-        color: str = '#1E80F0',
-        width: int = 2,
-        style: LINE_STYLE = 'solid',
-        text: str = '',
-        func = None,
-    ):
+    def __init__(self, line_id, chart, start_time: TIME, value: NUM,
+                 round: bool= False, color: str= '#1E80F0', width: int= 2,
+                 style: LINE_STYLE= 'solid', text: str= '', func= None):
         super().__init__(chart, func)
+        self.line_id = line_id
         self.run_script(f'''
         {self.id} = new Lib.RayLine(
             {{time: {self.chart._single_datetime_format(start_time)}, price: {value}}},
@@ -197,65 +179,40 @@ class RayLine(Drawing):
 
 
 class Box(TwoPointDrawing):
-    def __init__(self,
-        chart,
-        start_time: TIME,
-        start_value: NUM,
-        end_time: TIME,
-        end_value: NUM,
-        round: bool,
-        line_color: str,
-        fill_color: str,
-        width: int,
-        style: LINE_STYLE,
-        func=None):
-
-        super().__init__(
-            "Box",
-            chart,
-            start_time,
-            start_value,
-            end_time,
-            end_value,
-            round,
-            {
-                "lineColor": f'"{line_color}"',
-                "fillColor": f'"{fill_color}"',
-                "width": width,
-                "lineStyle": as_enum(style, LINE_STYLE)
-            },
-            func
-        )
+    def __init__(self, box_id, chart, start_time: TIME, start_value: NUM,
+                 end_time: TIME, end_value: NUM, round: bool, line_color: str,
+                 fill_color: str, width: int, style: LINE_STYLE, func=None):
+        self.box_id = box_id
+        options = {
+            "lineColor": f'"{line_color}"',
+            "fillColor": f'"{fill_color}"',
+            "width": width,
+            "lineStyle": as_enum(style, LINE_STYLE)
+        }
+        super().__init__( "Box", chart, start_time, start_value, end_time,
+                          end_value, round, options=options, func=func)
 
 
 class TrendLine(TwoPointDrawing):
     def __init__(self,
-        chart,
-        start_time: TIME,
-        start_value: NUM,
-        end_time: TIME,
-        end_value: NUM,
-        round: bool,
-        line_color: str,
-        width: int,
-        style: LINE_STYLE,
-        func=None):
+                 chart,
+                 start_time: TIME,
+                 start_value: NUM,
+                 end_time: TIME,
+                 end_value: NUM,
+                 round: bool,
+                 line_color: str,
+                 width: int,
+                 style: LINE_STYLE,
+                 func=None):
+        options = {
+            "lineColor": f'"{line_color}"',
+            "width": width,
+            "lineStyle": as_enum(style, LINE_STYLE)
+        }
+        super().__init__("TrendLine", chart, start_time, start_value, end_time,
+                         end_value, round, options=options, func=func )
 
-        super().__init__(
-            "TrendLine",
-            chart,
-            start_time,
-            start_value,
-            end_time,
-            end_value,
-            round,
-            {
-                "lineColor": f'"{line_color}"',
-                "width": width,
-                "lineStyle": as_enum(style, LINE_STYLE)
-            },
-            func
-        )
 
 # TODO reimplement/fix
 class VerticalSpan(Pane):

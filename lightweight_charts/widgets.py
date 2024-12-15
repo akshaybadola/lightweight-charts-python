@@ -14,24 +14,22 @@ except ImportError:
 
 try:
     using_pyside6 = False
-    from PyQt5.QtWebEngineWidgets import QWebEngineView
-    from PyQt5.QtWebChannel import QWebChannel
-    from PyQt5.QtCore import QObject, pyqtSlot as Slot, QUrl, QTimer
+    from PyQt6.QtWebEngineWidgets import QWebEngineView
+    from PyQt6.QtWebChannel import QWebChannel
+    from PyQt6.QtCore import QObject, pyqtSlot as Slot, QUrl, QTimer
 except ImportError:
-    using_pyside6 = True
     try:
-        from PySide6.QtWebEngineWidgets import QWebEngineView
-        from PySide6.QtWebChannel import QWebChannel
-        from PySide6.QtCore import Qt, QObject, Slot, QUrl, QTimer
+        from PyQt5.QtWebEngineWidgets import QWebEngineView
+        from PyQt5.QtWebChannel import QWebChannel
+        from PyQt5.QtCore import QObject, pyqtSlot as Slot, QUrl, QTimer
     except ImportError:
+        using_pyside6 = True
         try:
-            using_pyside6 = False
-            from PyQt6.QtWebEngineWidgets import QWebEngineView
-            from PyQt6.QtWebChannel import QWebChannel
-            from PyQt6.QtCore import QObject, pyqtSlot as Slot, QUrl, QTimer
+            from PySide6.QtWebEngineWidgets import QWebEngineView
+            from PySide6.QtWebChannel import QWebChannel
+            from PySide6.QtCore import Qt, QObject, Slot, QUrl, QTimer
         except ImportError:
             QWebEngineView = None
-
 
 if QWebEngineView:
     class Bridge(QObject):
