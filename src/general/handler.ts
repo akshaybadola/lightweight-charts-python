@@ -47,6 +47,7 @@ export class Handler {
     public precision: number = 2;
 
     public series: ISeriesApi<SeriesType>;
+    public candlestickSeries: ISeriesApi<SeriesType>;
     public volumeSeries: ISeriesApi<SeriesType>;
 
     public legend: Legend;
@@ -86,6 +87,7 @@ export class Handler {
 
         this.chart = this._createChart();
         this.series = this.createCandlestickSeries();
+        this.candlestickSeries = this.series; // alias
         this.volumeSeries = this.createVolumeSeries();
 
         this.legend = new Legend(this)
@@ -155,6 +157,14 @@ export class Handler {
             },
             handleScroll: {vertTouchDrag: true},
         })
+    }
+
+    setVisible(display: boolean) {
+        if (display) {
+            this.div.style.display = "flex";
+        } else {
+            this.div.style.display = "none";
+        }
     }
 
     createCandlestickSeries() {

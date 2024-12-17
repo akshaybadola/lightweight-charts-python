@@ -59,7 +59,7 @@ def emit_callback(window, string):
     asyncio.create_task(func(*args)) if asyncio.iscoroutinefunction(func) else func(*args)
 
 
-class WxChart(abstract.AbstractChart):
+class WxChart(abstract.Container):
     def __init__(self, parent, inner_width: float = 1.0, inner_height: float = 1.0,
                  scale_candles_only: bool = False, toolbox: bool = False):
         if wx is None:
@@ -78,7 +78,7 @@ class WxChart(abstract.AbstractChart):
         return self.webview
 
 
-class QtChart(abstract.AbstractChart):
+class QtChart(abstract.Container):
     def __init__(self, widget=None, inner_width: float = 1.0, inner_height: float = 1.0,
                  scale_candles_only: bool = False, toolbox: bool = False):
         if QWebEngineView is None:
@@ -114,7 +114,7 @@ class QtChart(abstract.AbstractChart):
         return self.webview
 
 
-class StaticLWC(abstract.AbstractChart):
+class StaticLWC(abstract.Container):
     def __init__(self, width=None, height=None, inner_width=1, inner_height=1,
                  scale_candles_only: bool = False, toolbox=False, autosize=True):
 

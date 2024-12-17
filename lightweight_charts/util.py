@@ -153,7 +153,7 @@ class Events:
         self.search = JSEmitter(chart, f'search{chart.id}',
             lambda o: chart.run_script(f'''
             Lib.Handler.makeSpinner({chart.id})
-            {chart.id}.search = Lib.Handler.makeSearchBox({chart.id}, {chart.symbols})
+            {chart.id}.search = Lib.Handler.makeSearchBox({chart.id}, {[*chart.symbols]})
             ''')
         )
         salt = chart.id[chart.id.index('.')+1:]

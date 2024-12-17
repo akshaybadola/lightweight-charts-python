@@ -38,6 +38,7 @@ class PyWV:
         self, width, height, x, y, screen=None, on_top=False,
         maximize=False, title=''
     ):
+        # THIS actually creates a `webview` window
         screen = webview.screens[screen] if screen is not None else None
         if maximize:
             if screen is None:
@@ -46,6 +47,7 @@ class PyWV:
             else:
                 width, height = screen.width, screen.height
 
+        # Here an actual window is created
         self.windows.append(webview.create_window(
             title,
             url=abstract.INDEX,
@@ -95,6 +97,7 @@ class PyWV:
 
 class WebviewHandler():
     def __init__(self, debug=False) -> None:
+        print("Create WebviewHandler")
         self.debug = debug
         self._reset()
 
@@ -146,11 +149,15 @@ class WebviewHandler():
         self._reset()
 
 
-class Chart(abstract.AbstractChart):
+# TODO: So there should be a global WebviewHandler and a handler can create
+#       multiple windows. ATM, each Chart starts to instantiate another WebviewHandler
+#       which completely messes things up.
+class Chart(abstract.Container):
     _main_window_handlers = None
     debug = False
     WV: WebviewHandler = WebviewHandler()
 
+    # NOTE: If called from a program, this creates another WebviewHandler.
     @classmethod
     def set_debug(cls, debug):
         cls.debug = debug
@@ -173,17 +180,17 @@ class Chart(abstract.AbstractChart):
         scale_candles_only: bool = False,
         position: FLOAT = 'left',
     ):
+        # WV is an instance, so a `create_window` is called
         self._i = Chart.WV.create_window(
                     width, height, x, y, screen, on_top, maximize, title
                 )
-
         window = abstract.Window(
                     script_func=lambda s: Chart.WV.evaluate_js(self._i, s),
                     js_api_code='pywebview.api.callback'
                 )
-
-        abstract.Window._return_q = Chart.WV.return_queue
-
+        # Should either be set_return_q or return_q = Chart.WV.return_queue
+        # THIS IS A CLASS PROPERTY? WHY?
+        abstract.Window.return_q = Chart.WV.return_queue
         self.is_alive = True
 
         if Chart._main_window_handlers is None:
@@ -199,7 +206,8 @@ class Chart(abstract.AbstractChart):
         :param block: blocks execution until the chart is closed.
         """
         if not self.win.loaded:
-            Chart.WV.start()
+            if not Chart.WV.wv_process.is_alive():
+                Chart.WV.start()
             self.win.on_js_load()
         else:
             Chart.WV.show(self._i)

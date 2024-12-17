@@ -1,5 +1,6 @@
 import asyncio
 import json
+
 import pandas as pd
 
 from typing import Union, Optional
@@ -68,7 +69,7 @@ class TwoPointDrawing(Drawing):
 
 
 class HorizontalLine(Drawing):
-    def __init__(self, line_id, chart, price, color, width, style, text, axis_label_visible, func):
+    def __init__(self, chart, line_id, price, color, width, style, text, axis_label_visible, func):
         super().__init__(chart, func)
         self.line_id = line_id
         self.price = price
@@ -128,7 +129,7 @@ class HorizontalLine(Drawing):
 
 
 class VerticalLine(Drawing):
-    def __init__(self, line_id, chart, time, color, width, style, text, func=None):
+    def __init__(self, chart, line_id, time, color, width, style, text, func=None):
         super().__init__(chart, func)
         self.line_id = line_id
         self.time = time
@@ -158,7 +159,7 @@ class VerticalLine(Drawing):
 
 
 class RayLine(Drawing):
-    def __init__(self, line_id, chart, start_time: TIME, value: NUM,
+    def __init__(self, chart, line_id, start_time: TIME, value: NUM,
                  round: bool= False, color: str= '#1E80F0', width: int= 2,
                  style: LINE_STYLE= 'solid', text: str= '', func= None):
         super().__init__(chart, func)
@@ -179,7 +180,7 @@ class RayLine(Drawing):
 
 
 class Box(TwoPointDrawing):
-    def __init__(self, box_id, chart, start_time: TIME, start_value: NUM,
+    def __init__(self, chart, box_id, start_time: TIME, start_value: NUM,
                  end_time: TIME, end_value: NUM, round: bool, line_color: str,
                  fill_color: str, width: int, style: LINE_STYLE, func=None):
         self.box_id = box_id

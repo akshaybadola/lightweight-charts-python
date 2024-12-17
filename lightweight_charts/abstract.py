@@ -2,6 +2,7 @@ from typing import Callable
 import asyncio
 import json
 import os
+import random
 from base64 import b64decode
 from datetime import datetime
 from typing import Callable, Union, Literal, List, Optional
@@ -22,13 +23,15 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 INDEX = os.path.join(current_dir, 'js', 'index.html')
 
 
+# TODO: WTF, Window is not a window?
 class Window:
     _id_gen = IDGen()
     handlers = {}
+    _return_q = None
 
     def __init__(
         self,
-        script_func: Optional[Callable] = None,
+        script_func: Callable,
         js_api_code: Optional[str] = None,
         run_script: Optional[Callable] = None
     ):
@@ -49,7 +52,7 @@ class Window:
             return
         self.loaded = True
 
-        if hasattr(self, '_return_q'):
+        if self._return_q is not None:
             while not self.run_script_and_get('document.readyState == "complete"'):
                 continue    # scary, but works
 
@@ -96,8 +99,8 @@ class Window:
         scale_candles_only: bool = False,
         sync_crosshairs_only: bool = False,
         toolbox: bool = False
-    ) -> 'AbstractChart':
-        subchart = AbstractChart(
+    ) -> 'Container':
+        subchart = Container(
             self,
             width,
             height,
@@ -131,7 +134,7 @@ class Window:
 
 
 class SeriesCommon(Pane):
-    def __init__(self, chart: 'AbstractChart', name: str = ''):
+    def __init__(self, chart: 'Container', name: str = ''):
         super().__init__(chart.win)
         self._chart = chart
         if hasattr(chart, '_interval'):
@@ -297,16 +300,6 @@ class SeriesCommon(Pane):
         """
         self.markers.pop(marker_id)
         self._update_markers()
-
-    def horizontal_line(self, price: NUM, color: str = 'rgb(122, 146, 202)', width: int = 2,
-                        style: LINE_STYLE = 'solid', text: str = '', axis_label_visible: bool = True,
-                        func: Optional[Callable] = None, id=None
-                        ) -> 'HorizontalLine':
-        """
-        Creates a horizontal line at the given price.
-        """
-        line_id = random.randint(0, 99_999_999)
-        return HorizontalLine(self, line_id, price, color, width, style, text, axis_label_visible, func)
 
     def trend_line(
         self,
@@ -523,16 +516,17 @@ class Histogram(SeriesCommon):
 
 
 class Candlestick(SeriesCommon):
-    def __init__(self, chart: 'AbstractChart'):
+    def __init__(self, chart: 'Container'):
         super().__init__(chart)
         self._volume_up_color = 'rgba(83,141,131,0.8)'
         self._volume_down_color = 'rgba(200,127,130,0.8)'
-
         self.candle_data = pd.DataFrame()
 
         # self.run_script(f'{self.id}.makeCandlestickSeries()')
 
-    def set(self, df: Optional[pd.DataFrame] = None, keep_drawings=False):
+    # FIXME: So many weird function structures.
+    #        This `set` signature is incompatible with `SeriesCommon.set`
+    def set(self, df: Optional[pd.DataFrame] = None):
         """
         Sets the initial data for the chart.\n
         :param df: columns: date/time, open, high, low, close, volume (if volume enabled).
@@ -546,35 +540,16 @@ class Candlestick(SeriesCommon):
         df = self._df_datetime_format(df)
         self.candle_data = df.copy()
         self._last_bar = df.iloc[-1]
-        self.run_script(f'{self.id}.series.setData({js_data(df)})')
+        # FIXME: YUCK!
+        self.run_script(f'{self._chart.id}.series.setData({js_data(df)})')
 
         if 'volume' not in df:
             return
         volume = df.drop(columns=['open', 'high', 'low', 'close']).rename(columns={'volume': 'value'})
         volume['color'] = self._volume_down_color
         volume.loc[df['close'] > df['open'], 'color'] = self._volume_up_color
-        self.run_script(f'{self.id}.volumeSeries.setData({js_data(volume)})')
-
-        # TODO: Separate user data from market data
-        #       E.g. Orders or other lines which are placed by the user,
-        #       WHICH ARE NOT YET EXECUTED should be saved and restored
-
-        #       While ORDERS WHICH HAVE BEEN EXECUTED, should be there as markers
-        #       which can be fetched from the service.
-        for line in self._lines:
-            if line.name not in df.columns:
-                continue
-            line.set(df[['time', line.name]], format_cols=False)
-        # set autoScale to true in case the user has dragged the price scale
-        self.run_script(f'''
-            if (!{self.id}.chart.priceScale("right").options.autoScale)
-                {self.id}.chart.priceScale("right").applyOptions({{autoScale: true}})
-        ''')
-        # TODO keep drawings doesn't work consistenly w
-        if keep_drawings:
-            self.run_script(f'{self._chart.id}.toolBox?._drawingTool.repositionOnTime()')
-        else:
-            self.run_script(f"{self._chart.id}.toolBox?.clearDrawings()")
+        self.run_script(f'{self._chart.id}.volumeSeries.setData({js_data(volume)})')
+        return df
 
     def update(self, series: pd.Series, _from_tick=False):
         """
@@ -589,12 +564,12 @@ class Candlestick(SeriesCommon):
             self._chart.events.new_bar._emit(self)
 
         self._last_bar = series
-        self.run_script(f'{self.id}.series.update({js_data(series)})')
+        self.run_script(f'{self._chart.id}.series.update({js_data(series)})')
         if 'volume' not in series:
             return
         volume = series.drop(['open', 'high', 'low', 'close']).rename({'volume': 'value'})
         volume['color'] = self._volume_up_color if series['close'] > series['open'] else self._volume_down_color
-        self.run_script(f'{self.id}.volumeSeries.update({js_data(volume)})')
+        self.run_script(f'{self._chart.id}.volumeSeries.update({js_data(volume)})')
 
     def update_from_tick(self, series: pd.Series, cumulative_volume: bool = False):
         """
@@ -642,7 +617,7 @@ class Candlestick(SeriesCommon):
         minimum_width: int = 0
     ):
         self.run_script(f'''
-            {self.id}.series.priceScale().applyOptions({{
+            {self._chart.id}.series.priceScale().applyOptions({{
                 autoScale: {jbool(auto_scale)},
                 mode: {as_enum(mode, PRICE_SCALE_MODE)},
                 invertScale: {jbool(invert_scale)},
@@ -669,7 +644,7 @@ class Candlestick(SeriesCommon):
         border_down_color = border_down_color if border_down_color else down_color
         wick_up_color = wick_up_color if wick_up_color else up_color
         wick_down_color = wick_down_color if wick_down_color else down_color
-        self.run_script(f"{self.id}.series.applyOptions({js_json(locals())})")
+        self.run_script(f"{self._chart.id}.series.applyOptions({js_json(locals())})")
 
     def volume_config(self, scale_margin_top: float = 0.8, scale_margin_bottom: float = 0.0,
                       up_color='rgba(83,141,131,0.8)', down_color='rgba(200,127,130,0.8)'):
@@ -681,7 +656,7 @@ class Candlestick(SeriesCommon):
         self._volume_up_color = up_color if up_color else self._volume_up_color
         self._volume_down_color = down_color if down_color else self._volume_down_color
         self.run_script(f'''
-        {self.id}.volumeSeries.priceScale().applyOptions({{
+        {self._chart.id}.volumeSeries.priceScale().applyOptions({{
             scaleMargins: {{
             top: {scale_margin_top},
             bottom: {scale_margin_bottom},
@@ -689,10 +664,11 @@ class Candlestick(SeriesCommon):
         }})''')
 
 
-class AbstractChart(Candlestick, Pane):
+class Container(Pane):
     def __init__(self, window: Window, width: float = 1.0, height: float = 1.0,
                  scale_candles_only: bool = False, toolbox: bool = False,
                  autosize: bool = True, position: FLOAT = 'left'):
+        # FIXME: YUCK
         Pane.__init__(self, window)
 
         self._lines = []
@@ -701,18 +677,51 @@ class AbstractChart(Candlestick, Pane):
         self._height = height
         self.events: Events = Events(self)
 
-        from lightweight_charts.polygon import PolygonAPI
-        self.polygon: PolygonAPI = PolygonAPI(self)
-
+        # Container is actually a `Handler`
         self.run_script(
             f'{self.id} = new Lib.Handler("{self.id}", {width}, {height}, "{position}", {jbool(autosize)})')
 
-        Candlestick.__init__(self, self)
+        self._candlestick = Candlestick(self)
 
         self.topbar: TopBar = TopBar(self)
         if toolbox:
             self.toolbox: ToolBox = ToolBox(self)
         self._exit_hook: list[Callable] = []
+
+    def set(self, data: Optional[pd.DataFrame] = None, keep_drawings=False):
+        df = self._candlestick.set(data)
+        # TODO: Separate user data from market data
+        #       E.g. Orders or other lines which are placed by the user,
+        #       WHICH ARE NOT YET EXECUTED should be saved and restored
+
+        #       While ORDERS WHICH HAVE BEEN EXECUTED, should be there as markers
+        #       which can be fetched from the service.
+        for line in self._lines:
+            if line.name not in df.columns:
+                continue
+            line.set(df[['time', line.name]], format_cols=False)
+        # set autoScale to true in case the user has dragged the price scale
+        self.run_script(f'''
+            if (!{self.id}.chart.priceScale("right").options.autoScale)
+                {self.id}.chart.priceScale("right").applyOptions({{autoScale: true}})
+        ''')
+        # TODO keep drawings doesn't work consistenly
+        if keep_drawings:
+            self.run_script(f'{self.id}.toolBox?._drawingTool.repositionOnTime()')
+        else:
+            self.run_script(f"{self.id}.toolBox?.clearDrawings()")
+
+    def update(self, series: pd.Series, _from_tick=False):
+        return self._candlestick.update(series, _from_tick)
+
+    def update_from_tick(self, series: pd.Series, cumulative_volume: bool = False):
+        return self._candlestick.update_from_tick(series, cumulative_volume)
+
+    def price_scale(self, *args, **kwargs):
+        return self._candlestick.price_scale(*args, **kwargs)
+
+    def volume_config(self, *args, **kwargs):
+        return self._candlestick.volume_config(*args, **kwargs)
 
     def run_exit_hook(self):
         for func in self._exit_hook:
@@ -942,15 +951,17 @@ class AbstractChart(Candlestick, Pane):
         serial_data = self.win.run_script_and_get(f'{self.id}.chart.takeScreenshot().toDataURL()')
         return b64decode(serial_data.split(',')[1])
 
-    def create_subchart(self, position: FLOAT = 'left', width: float = 0.5, height: float = 0.5,
-                        sync: Optional[Union[str, bool]] = None, scale_candles_only: bool = False,
-                        sync_crosshairs_only: bool = False,
-                        toolbox: bool = False) -> 'AbstractChart':
-        if sync is True:
-            sync = self.id
-        args = locals()
-        del args['self']
-        return self.win.create_subchart(*args.values())
+    def create_subchart(self, **kwargs) -> 'Container':
+        # position: FLOAT = 'left', width: float = 0.5, height: float = 0.5,
+        #                         sync: Optional[Union[str, bool]] = None, scale_candles_only: bool = False,
+        #                         sync_crosshairs_only: bool = False,
+        #                         toolbox: bool = False
+        sync = False
+        if "sync" in kwargs:
+            sync = kwargs.pop("sync")
+        if sync:
+            kwargs["sync_id"] = self.id
+        return self.win.create_subchart(**kwargs)
 
     def create_price_alert(self, symbol):
         self.run_script(f'{self.id}.createUserPriceAlert("{symbol}");')
@@ -965,3 +976,16 @@ class AbstractChart(Candlestick, Pane):
 
     def create_tool_tip(self):
         self.run_script(f'{self.id}.createDeltaToolTip();')
+
+    def create_horizontal_line(self, price: NUM, color: str = 'rgb(122, 146, 202)', width: int = 2,
+                               style: LINE_STYLE = 'solid', text: str = '', axis_label_visible: bool = True,
+                               func: Optional[Callable] = None, id=None
+                               ) -> 'HorizontalLine':
+        """
+        Creates a horizontal line at the given price.
+        """
+        line_id = random.randint(0, 99_999_999)
+        return HorizontalLine(self, line_id, price, color, width, style, text, axis_label_visible, func)
+
+    def set_visible(self):
+        self.run_script(f'{self.id}.setVisible(false)')
