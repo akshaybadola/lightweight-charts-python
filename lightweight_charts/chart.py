@@ -98,9 +98,18 @@ class PyWV:
 class WebviewHandler():
     def __init__(self, debug=False) -> None:
         print("Create WebviewHandler")
-        self.debug = debug
+        self._debug = debug
         self._reset()
 
+    @property
+    def debug(self):
+        return self._debug
+
+    @debug.setter
+    def debug(self, x):
+        self._debug = x
+
+    # CHECK: So reset is called at init and exit?
     def _reset(self):
         self.loaded_event = mp.Event()
         self.return_queue = mp.Queue()
@@ -149,9 +158,11 @@ class WebviewHandler():
         self._reset()
 
 
-# TODO: So there should be a global WebviewHandler and a handler can create
-#       multiple windows. ATM, each Chart starts to instantiate another WebviewHandler
-#       which completely messes things up.
+# FIXME: Actually this creates a single WV instance, but there should be a
+#        better way to do this, maybe something like an init_WV
+#
+#        While this works initially with two windows, the debugger crashes when
+#        one debugger window is closed
 class Chart(abstract.Container):
     _main_window_handlers = None
     debug = False
@@ -161,7 +172,8 @@ class Chart(abstract.Container):
     @classmethod
     def set_debug(cls, debug):
         cls.debug = debug
-        cls.WV = WebviewHandler(cls.debug)
+        cls.WV.debug = debug
+        cls.WV._reset()
 
     def __init__(
         self,
