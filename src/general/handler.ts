@@ -41,6 +41,9 @@ export class Handler {
 
     public wrapper: HTMLDivElement;
     public div: HTMLDivElement;
+    public indicator_div: HTMLDivElement;
+    public indicator_chart: IChartApi;
+    public indicators: ISeriesApi<SeriesType>[] = [];
 
     public chart: IChartApi;
     public scale: Scale;
@@ -83,7 +86,43 @@ export class Handler {
         this.div.style.position = 'relative'
 
         this.wrapper.appendChild(this.div);
-        window.containerDiv.append(this.wrapper)
+        window.containerDiv.append(this.wrapper);
+
+        this.indicator_div = document.createElement('div');
+        this.indicator_div.style.position = 'relative';
+        this.wrapper.appendChild(this.indicator_div);
+        this.indicator_div.style.display = "none";
+
+        this.indicator_chart = createChart(this.indicator_div, {
+            width: window.innerWidth * this.scale.width,
+            height: window.innerHeight * this.scale.height * .2,
+            layout:{
+                textColor: window.pane.color,
+                background: {
+                    color: '#000000',
+                    type: ColorType.Solid,
+                },
+                fontSize: 12
+            },
+            rightPriceScale: {
+                scaleMargins: {top: 0.3, bottom: 0.25},
+            },
+            timeScale: {timeVisible: true, secondsVisible: false},
+            crosshair: {
+                mode: CrosshairMode.Normal,
+                vertLine: {
+                    labelBackgroundColor: 'rgb(46, 46, 46)'
+                },
+                horzLine: {
+                    labelBackgroundColor: 'rgb(55, 55, 55)'
+                }
+            },
+            grid: {
+                vertLines: {color: 'rgba(29, 30, 38, 5)'},
+                horzLines: {color: 'rgba(29, 30, 58, 5)'},
+            },
+            handleScroll: {vertTouchDrag: true},
+        });
 
         this.chart = this._createChart();
         this.series = this.createCandlestickSeries();
@@ -253,6 +292,20 @@ export class Handler {
         console.log("voluem profile VPDATA", vpData);
         const volumeProfile = new VolumeProfile(this.chart, line.series, vpData);
         line.series.attachPrimitive(volumeProfile);
+    }
+
+    createIndicator(name: string, options: DeepPartial<LineStyleOptions & SeriesOptionsCommon>) {
+        this.indicator_div.style.position = 'right'
+        this.indicator_div.style.width = `${100}%`
+        this.indicator_div.style.height = `${20 * this.scale.height}%`
+        this.indicator_div.style.display = 'flex'
+        this.indicator_div.style.flexDirection = 'row-reverse'
+        const line = this.indicator_chart.addLineSeries({...options});
+        this.indicators.push(line);
+        return {
+            name: name,
+            series: line
+        }
     }
 
     createUserPriceAlert (symbol: string) {

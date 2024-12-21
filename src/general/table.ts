@@ -84,7 +84,6 @@ export class Table {
             th.style.color = textColors[i]
             th.addEventListener('click', () => window.callbackFunction(
                 `${this._root_id}_~_heading;;;${this.headings[i]}`))
-            console.log(this._div, this._root_id);
             row.appendChild(th)
         }
 
@@ -251,7 +250,6 @@ export class Table {
     flashRow(rowId: number){
         const row = this.rows[rowId];
         row.classList.add('flash');
-        console.log(row.classList);
     }
 
     stopFlashRow(rowId: number){

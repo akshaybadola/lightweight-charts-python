@@ -686,6 +686,7 @@ class Container(Pane):
         self.topbar: TopBar = TopBar(self)
         if toolbox:
             self.toolbox: ToolBox = ToolBox(self)
+        self._indicator_charts = []
         self._exit_hook: list[Callable] = []
 
     def set(self, data: Optional[pd.DataFrame] = None, keep_drawings=False):
@@ -989,3 +990,29 @@ class Container(Pane):
 
     def set_visible(self):
         self.run_script(f'{self.id}.setVisible(false)')
+
+    def add_indicator(self, name, data):
+        color: str = 'rgb(122, 146, 202)'
+        width: int = 2
+        style: LINE_STYLE = 'solid'
+        price_scale_id = None
+        line_id = self.win._id_gen.generate()
+        self._indicator_charts.append(line_id)
+        self.run_script(f'''
+            {line_id} = {self.id}.createIndicator(
+                "{name}",
+                {{
+                    color: '{color}',
+                    lineStyle: {as_enum(style, LINE_STYLE)},
+                    lineWidth: {width},
+                    lastValueVisible: {jbool(True)},
+                    priceLineVisible: {jbool(True)},
+                    crosshairMarkerVisible: {jbool(True)},
+                    priceScaleId: {f'"{price_scale_id}"' if price_scale_id else 'undefined'}
+                }}
+            )
+        null''')
+        data = data.reset_index().rename(columns={"last_trade_time": "time", "price": "value"}).dropna()
+        data["time"] = data.time.map(datetime.timestamp)
+        self.run_script(f'{self.id}.indicators[0].setData({js_data(data)});')
+        self.resize(self._width, self._height*.8)
