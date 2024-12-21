@@ -991,6 +991,12 @@ class Container(Pane):
     def set_visible(self):
         self.run_script(f'{self.id}.setVisible(false)')
 
+    def toggle_indicators(self, toggle):
+        if toggle:
+            self.run_script(f'{self.id}.hideIndicators()')
+        else:
+            self.run_script(f'{self.id}.showIndicators()')
+
     def add_indicator(self, name, data):
         color: str = 'rgb(122, 146, 202)'
         width: int = 2
@@ -1014,5 +1020,5 @@ class Container(Pane):
         null''')
         data = data.reset_index().rename(columns={"last_trade_time": "time", "price": "value"}).dropna()
         data["time"] = data.time.map(datetime.timestamp)
-        self.run_script(f'{self.id}.indicators[0].setData({js_data(data)});')
+        self.run_script(f'{self.id}.indicators["{name}"].setData({js_data(data)});')
         self.resize(self._width, self._height*.8)

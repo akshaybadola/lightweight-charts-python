@@ -31,6 +31,12 @@ export interface Scale{
     height: number,
 }
 
+type IndicatorType = {
+    name: string;
+    series: ISeriesApi<SeriesType>;
+
+}
+
 
 globalParamInit();
 declare const window: GlobalParams;
@@ -43,7 +49,7 @@ export class Handler {
     public div: HTMLDivElement;
     public indicator_div: HTMLDivElement;
     public indicator_chart: IChartApi;
-    public indicators: ISeriesApi<SeriesType>[] = [];
+    public indicators: IndicatorType = Object();
 
     public chart: IChartApi;
     public scale: Scale;
@@ -301,11 +307,22 @@ export class Handler {
         this.indicator_div.style.display = 'flex'
         this.indicator_div.style.flexDirection = 'row-reverse'
         const line = this.indicator_chart.addLineSeries({...options});
-        this.indicators.push(line);
+        this.indicators[name] = line;
+        console.log("Indicators", this.indicators);
         return {
             name: name,
             series: line
         }
+    }
+
+    showIndicators(){
+        this.indicator_div.style.height = `${20 * this.scale.height}%`
+        this.indicator_div.style.display = "flex";
+    }
+
+    hideIndicators(){
+        this.indicator_div.style.height = `${0 * this.scale.height}%`
+        this.indicator_div.style.display = "none";
     }
 
     createUserPriceAlert (symbol: string) {
