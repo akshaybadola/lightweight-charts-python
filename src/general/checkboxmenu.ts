@@ -6,6 +6,7 @@ export class CheckboxMenu {
     private div: HTMLDivElement;
     private isOpen: boolean = false;
     private widget: any;
+    private handler_id: string;
     private checkboxStates: { [key: string]: boolean } = {};
 
     constructor(
@@ -14,11 +15,12 @@ export class CheckboxMenu {
         name: string,
         items: string[],
         separator: boolean,
-        align: 'right' | 'left'
+        align: 'right' | 'left',
+        handler_id: string
     ) {
         this.div = document.createElement('div');
         this.div.classList.add('topbar-menu');
-
+        this.handler_id = handler_id;
         this.widget = this.makeButton(name+' ↓', null, separator, true, align);
 
         // Initialize checkbox states
@@ -47,6 +49,7 @@ export class CheckboxMenu {
 
     updateMenuItems(items: string[]) {
         this.div.innerHTML = '';
+        const hid = this.handler_id.split(".")[1];
 
         items.forEach(item => {
             const container = document.createElement('div');
@@ -60,6 +63,9 @@ export class CheckboxMenu {
             checkbox.style.marginRight = '8px';
             checkbox.checked = this.checkboxStates[item];
 
+            const checkboxId = `topbar-checkbox-${hid}-${item}`;
+            checkbox.id = checkboxId;
+
             checkbox.addEventListener('click', () => {
                 this.checkboxStates[item] = checkbox.checked;
                 this._clickHandler();
@@ -67,11 +73,7 @@ export class CheckboxMenu {
 
             const label = document.createElement('label');
             label.innerText = item;
-
-            label.addEventListener('click', () => {
-                this.checkboxStates[item] = checkbox.checked;
-                this._clickHandler();
-            });
+            label.htmlFor = checkboxId;
 
             container.appendChild(checkbox);
             container.appendChild(label);
@@ -83,13 +85,6 @@ export class CheckboxMenu {
     private _clickHandler() {
         const checkedItems = Object.keys(this.checkboxStates).filter(key => this.checkboxStates[key]);
         const uncheckedItems = Object.keys(this.checkboxStates).filter(key => !this.checkboxStates[key]);
-
-        console.log('Checked Items:', checkedItems);
-        console.log('Unchecked Items:', uncheckedItems);
-
-        // Example callback
-        // this.divToButton(cell, `${this.callbackName}_~_${id};;;${this.headings[i]}`)
-        // Send callback with the checked and unchecked items
         window.callbackFunction(
             `${this.callbackName}_~_checked:${checkedItems.join(',')};;;unchecked:${uncheckedItems.join(',')}`
         );

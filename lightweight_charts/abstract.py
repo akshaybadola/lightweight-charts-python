@@ -686,7 +686,7 @@ class Container(Pane):
         self.topbar: TopBar = TopBar(self)
         if toolbox:
             self.toolbox: ToolBox = ToolBox(self)
-        self._indicator_charts = []
+        self._indicators = {}
         self._exit_hook: list[Callable] = []
 
     def set(self, data: Optional[pd.DataFrame] = None, keep_drawings=False):
@@ -993,17 +993,24 @@ class Container(Pane):
 
     def toggle_indicators(self, toggle):
         if toggle:
-            self.run_script(f'{self.id}.hideIndicators()')
-        else:
             self.run_script(f'{self.id}.showIndicators()')
+        else:
+            self.run_script(f'{self.id}.hideIndicators()')
 
-    def add_indicator(self, name, data):
+    def add_indicator(self, name):
+        # : str = '', color: str = 'rgba(214, 237, 255, 0.6)',
+        #                       style: LINE_STYLE = 'solid', width: int = 2,
+        #                       price_line: bool = True, price_label: bool = True,
+        #                       price_scale_id: Optional[str] = None):
+        # indicator = Indicator(self, name, color, style, width, price_line, price_label,
+        #                       price_scale_id)
+        # self._indicators[name] = indicator
         color: str = 'rgb(122, 146, 202)'
         width: int = 2
         style: LINE_STYLE = 'solid'
         price_scale_id = None
         line_id = self.win._id_gen.generate()
-        self._indicator_charts.append(line_id)
+        self._indicators[name] = line_id
         self.run_script(f'''
             {line_id} = {self.id}.addIndicator(
                 "{name}",
@@ -1018,7 +1025,16 @@ class Container(Pane):
                 }}
             )
         null''')
-        data = data.reset_index().rename(columns={"last_trade_time": "time", "price": "value"}).dropna()
+
+    def set_indicator_data(self, name, data):
         data["time"] = data.time.map(datetime.timestamp)
         self.run_script(f'{self.id}.indicators["{name}"].setData({js_data(data)});')
-        self.resize(self._width, self._height*.8)
+        self.run_script(f'''
+            {self.id}.syncParentIndicatorChart(
+                {jbool(False)}
+            )
+        ''', run_last=True)
+
+    def resize_indicators(self, scale):
+        self.run_script(f'{self.id}.resizeIndicators({scale});')
+

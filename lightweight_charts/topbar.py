@@ -20,9 +20,9 @@ class Widget(Pane):
                 self.value = v
             func(topbar._chart, v, *args)
 
-        async def async_wrapper(v):
+        async def async_wrapper(v, *args):
             self.value = v
-            await func(topbar._chart)
+            await func(topbar._chart, v, *args)
 
         self.win.handlers[self.id] = async_wrapper if asyncio.iscoroutinefunction(func) else wrapper
 

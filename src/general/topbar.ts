@@ -118,8 +118,9 @@ export class TopBar {
     }
 
     makeCheckboxMenu(name: string, items: string[], separator: boolean, callbackName: string, align: 'right'|'left') {
-        console.log("Checkbox menu", "items", items, "name", name, "callback", callbackName);
-        return new CheckboxMenu(this.makeButton.bind(this), callbackName, name, items, separator, align)
+        console.log("Checkbox menu handler", this._handler);
+        return new CheckboxMenu(this.makeButton.bind(this), callbackName, name, items, separator, align,
+                                this._handler.id)
     }
 
     makeButton(defaultText: string, callbackName: string | null, separator: boolean, append=true, align='left', toggle=false) {

@@ -100,6 +100,7 @@ export class Handler {
         this.indicator_div.style.display = "none";
 
         this.indicator_chart = this.createIndicator();
+        // Handler.syncParentIndicatorChart(this.indicator_div, this, false);
 
         this.chart = this._createChart();
         this.series = this.createCandlestickSeries();
@@ -321,6 +322,14 @@ export class Handler {
         }
     }
 
+    resizeIndicators(scaleHeight: number){
+        // const height = this.indicator_chart
+        console.log("Indicator chart panesize", this.indicator_chart.paneSize())
+        console.log("Indicator chart set new height", window.innerHeight * this.scale.height * scaleHeight);
+        this.indicator_chart.resize(window.innerWidth * this.scale.width,
+                                    window.innerHeight * this.scale.height * scaleHeight);
+    }
+
     showIndicators(){
         this.indicator_div.style.height = `${20 * this.scale.height}%`
         this.indicator_div.style.display = "flex";
@@ -436,6 +445,42 @@ export class Handler {
 
         if (crosshairOnly) return;
         parentChart.chart.timeScale().subscribeVisibleLogicalRangeChange(setChildRange)
+    }
+
+    public syncParentIndicatorChart(crosshairOnly = false) {
+        const indicatorChart = this.indicator_chart;
+        function crosshairHandler(chart: IChartApi, point: any) {
+            if (!point) {
+                chart.clearCrosshairPosition();
+                return;
+            }
+            chart.setCrosshairPosition(point.value || point.close, point.time, chart.series);
+        }
+
+        function getPoint(series: ISeriesApi<SeriesType>, param: MouseEventParams) {
+            if (!param.time) return null;
+            return param.seriesData.get(series) || null;
+        }
+
+        console.log("this, indicator", this, indicatorChart);
+        const parentTimeScale = this.chart.timeScale();
+        const indicatorTimeScale = indicatorChart.timeScale();
+
+        const setIndicatorRange = (timeRange: LogicalRange | null) => {
+            if (timeRange) indicatorTimeScale.setVisibleLogicalRange(timeRange);
+        };
+        const setIndicatorCrosshair = (param: MouseEventParams) => {
+            crosshairHandler(indicatorChart, getPoint(this.series, param));
+        };
+
+        this.chart.subscribeCrosshairMove(setIndicatorCrosshair);
+
+        const parentRange = parentTimeScale.getVisibleLogicalRange();
+        if (parentRange) indicatorTimeScale.setVisibleLogicalRange(parentRange);
+
+        if (!crosshairOnly) {
+            this.chart.timeScale().subscribeVisibleLogicalRangeChange(setIndicatorRange);
+        }
     }
 
     public static makeSearchBox(chart: Handler, items: []) {
