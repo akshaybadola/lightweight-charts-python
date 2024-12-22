@@ -997,7 +997,8 @@ class Container(Pane):
         else:
             self.run_script(f'{self.id}.hideIndicators()')
 
-    def add_indicator(self, name):
+    def add_indicator(self, name, color: str = 'rgb(122, 146, 202)',
+                      line_style: LINE_STYLE = "solid"):
         # : str = '', color: str = 'rgba(214, 237, 255, 0.6)',
         #                       style: LINE_STYLE = 'solid', width: int = 2,
         #                       price_line: bool = True, price_label: bool = True,
@@ -1005,9 +1006,7 @@ class Container(Pane):
         # indicator = Indicator(self, name, color, style, width, price_line, price_label,
         #                       price_scale_id)
         # self._indicators[name] = indicator
-        color: str = 'rgb(122, 146, 202)'
         width: int = 2
-        style: LINE_STYLE = 'solid'
         price_scale_id = None
         line_id = self.win._id_gen.generate()
         self._indicators[name] = line_id
@@ -1016,7 +1015,7 @@ class Container(Pane):
                 "{name}",
                 {{
                     color: '{color}',
-                    lineStyle: {as_enum(style, LINE_STYLE)},
+                    lineStyle: {as_enum(line_style, LINE_STYLE)},
                     lineWidth: {width},
                     lastValueVisible: {jbool(True)},
                     priceLineVisible: {jbool(True)},
@@ -1026,6 +1025,19 @@ class Container(Pane):
             )
         null''')
 
+    def hide_indicator(self, name):
+        self.run_script(f'{self.id}.hideIndicator("{name}")')
+
+    def show_indicator(self, name):
+        self.run_script(f'{self.id}.showIndicator("{name}")')
+
+    def remove_indicator(self, name):
+        self.run_script(f'{self.id}.removeIndicator("{name}")')
+
+    # NOTE: For multiple lines to work, `Handler.indicators[name]` will have to
+    #       store a list of lines
+    #       OR
+    #       self._indicators[name] can be either a single indicator or a dict
     def set_indicator_data(self, name, data):
         data["time"] = data.time.map(datetime.timestamp)
         self.run_script(f'{self.id}.indicators["{name}"].setData({js_data(data)});')
@@ -1037,4 +1049,3 @@ class Container(Pane):
 
     def resize_indicators(self, scale):
         self.run_script(f'{self.id}.resizeIndicators({scale});')
-

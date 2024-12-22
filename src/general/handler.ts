@@ -273,7 +273,7 @@ export class Handler {
     }
 
     createIndicator() {
-        const chart = createChart(this.indicator_div, {
+        const indicator = createChart(this.indicator_div, {
             width: window.innerWidth * this.scale.width,
             height: window.innerHeight * this.scale.height * .2,
             layout:{
@@ -308,14 +308,36 @@ export class Handler {
         this.indicator_div.style.height = `${20 * this.scale.height}%`
         this.indicator_div.style.display = 'flex'
         this.indicator_div.style.flexDirection = 'row-reverse'
-        return chart;
+        return indicator;
+    }
+
+    removeIndicator(name: string){
+        if (Object.keys(this.indicators).includes(name)){
+            this.indicator_chart.removeSeries(this.indicators[name]);
+            delete this.indicators[name];
+        }
+    }
+
+    hideIndicator(name: string){
+        if (Object.keys(this.indicators).includes(name)){
+            this.indicators[name].applyOptions({
+                    visible: false
+            });
+        }
+    }
+
+    showIndicator(name: string){
+        if (Object.keys(this.indicators).includes(name)){
+            this.indicators[name].applyOptions({
+                    visible: true
+            });
+        }
     }
 
     addIndicator(name: string, options: DeepPartial<LineStyleOptions & SeriesOptionsCommon>) {
         // TODO: remove line if preesnt with same name
         const line = this.indicator_chart.addLineSeries({...options});
         this.indicators[name] = line;
-        console.log("Indicators", this.indicators);
         return {
             name: name,
             series: line
