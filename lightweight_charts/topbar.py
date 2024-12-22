@@ -13,12 +13,12 @@ class Widget(Pane):
         super().__init__(topbar.win)
         self.value = value
 
-        def wrapper(v):
+        def wrapper(v, *args):
             if convert_boolean:
                 self.value = False if v == 'false' else True
             else:
                 self.value = v
-            func(topbar._chart)
+            func(topbar._chart, v, *args)
 
         async def async_wrapper(v):
             self.value = v
@@ -59,6 +59,29 @@ class MenuWidget(Widget):
         self.options = list(options)
         self.run_script(f'''
         {self.id} = {topbar.id}.makeMenu({list(options)}, "{default}", {jbool(separator)}, "{self.id}", "{align}")
+        ''')
+
+    # TODO this will probably need to be fixed
+    def set(self, option):
+        if option not in self.options:
+            raise ValueError(f"Option {option} not in menu options ({self.options})")
+        self.value = option
+        self.run_script(f'''
+            {self.id}._clickHandler("{option}")
+        ''')
+        # self.win.handlers[self.id](option)
+
+    def update_items(self, *items: str):
+        self.options = list(items)
+        self.run_script(f'{self.id}.updateMenuItems({self.options})')
+
+
+class CheckboxMenuWidget(Widget):
+    def __init__(self, topbar, name, options, separator, align, func):
+        super().__init__(topbar, value=name, func=func)
+        self.options = list(options)
+        self.run_script(f'''
+        {self.id} = {topbar.id}.makeCheckboxMenu("{name}", {list(options)}, {jbool(separator)}, "{self.id}", "{align}")
         ''')
 
     # TODO this will probably need to be fixed
@@ -125,6 +148,11 @@ class TopBar(Pane):
         self._create()
         self._widgets[name] = MenuWidget(self, options, default if default else options[0],
                                          separator, align, func)
+
+    def checkboxmenu(self, name, options: tuple, separator: bool = True,
+                     align: ALIGN = 'left', func: Optional[Callable] = None):
+        self._create()
+        self._widgets[name] = CheckboxMenuWidget(self, name, options, separator, align, func)
 
     def textbox(self, name: str, initial_text: str = '',
                 align: ALIGN = 'left', func: Optional[Callable] = None):

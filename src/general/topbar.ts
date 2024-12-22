@@ -1,6 +1,7 @@
 import { GlobalParams } from "./global-params";
 import { Handler } from "./handler";
 import { Menu } from "./menu";
+import { CheckboxMenu } from "./checkboxmenu";
 
 declare const window: GlobalParams
 
@@ -34,7 +35,7 @@ export class TopBar {
         this.left = createTopBarContainer('flex-start')
         this.right = createTopBarContainer('flex-end')
     }
-    
+
     makeSwitcher(items: string[], defaultItem: string, callbackName: string, align='left') {
         const switcherElement = document.createElement('div');
         switcherElement.style.margin = '4px 12px'
@@ -114,6 +115,11 @@ export class TopBar {
 
     makeMenu(items: string[], activeItem: string, separator: boolean, callbackName: string, align: 'right'|'left') {
         return new Menu(this.makeButton.bind(this), callbackName, items, activeItem, separator, align)
+    }
+
+    makeCheckboxMenu(name: string, items: string[], separator: boolean, callbackName: string, align: 'right'|'left') {
+        console.log("Checkbox menu", "items", items, "name", name, "callback", callbackName);
+        return new CheckboxMenu(this.makeButton.bind(this), callbackName, name, items, separator, align)
     }
 
     makeButton(defaultText: string, callbackName: string | null, separator: boolean, append=true, align='left', toggle=false) {

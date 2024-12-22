@@ -1005,7 +1005,7 @@ class Container(Pane):
         line_id = self.win._id_gen.generate()
         self._indicator_charts.append(line_id)
         self.run_script(f'''
-            {line_id} = {self.id}.createIndicator(
+            {line_id} = {self.id}.addIndicator(
                 "{name}",
                 {{
                     color: '{color}',
