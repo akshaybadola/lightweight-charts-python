@@ -692,7 +692,8 @@ class Container(Pane):
 
     def update_historical_data(self, data: pd.DataFrame):
         if not data.index.max() < self._data.index.min():
-            print("Trying to update mismatched time data", self._data, data)
+            # HACK: Ignore mismatched time data
+            # print("\nTrying to update mismatched time data", self._data, data)
             return
         self._data = pd.concat([data.copy(), self._data])
         self._min_date = self._data.index.min().date()
@@ -714,9 +715,15 @@ class Container(Pane):
     # TODO: line should have `transform` variable which keeps the method used to create the line
     def _post_set_data(self, df, keep_drawings=False):
         for line in self._lines:
-            if line.name not in df.columns:
+            if line.name in df.columns:
+                line.set(df[['time', line.name]], format_cols=False)
+            elif line.name.lower() in df.columns:
+                _df = df[['time', line.name.lower()]].copy()
+                line.set(_df.rename(columns={line.name.lower(): line.name}), format_cols=False)
+            else:
+                print(f"Line data for {line.name} not in df")
                 continue
-            line.set(df[['time', line.name]], format_cols=False)
+
         # set autoScale to true in case the user has dragged the price scale
         self.run_script(f'''
             if (!{self.id}.chart.priceScale("right").options.autoScale)

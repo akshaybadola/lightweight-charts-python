@@ -98,8 +98,8 @@ export class Handler {
         this.wrapper.appendChild(this.indicator_div);
         this.indicator_div.style.display = "none";
 
+
         this.indicator_chart = this.createIndicator();
-        // Handler.syncParentIndicatorChart(this.indicator_div, this, false);
 
         this.chart = this._createChart();
         this.series = this.createCandlestickSeries();
@@ -335,6 +335,58 @@ export class Handler {
                     visible: true
             });
         }
+    }
+
+    // NOTE: This does not work as intended. This creates a div at the top of the wrapper
+    //       And the resize also does not work as expected.
+    enableIndicatorResize() {
+        const resizeHandle = document.createElement('div');
+        this.wrapper.appendChild(resizeHandle);
+
+        resizeHandle.style.width = '100%';
+        resizeHandle.style.height = '5px';
+        resizeHandle.style.cursor = 'row-resize';
+        resizeHandle.style.position = 'relative';
+        resizeHandle.style.top = `${this.indicator_div.offsetTop}px`;
+        resizeHandle.style.background = 'rgba(255, 255, 255, 0.1)';
+        resizeHandle.style.zIndex = '100';
+
+        const candlestickChartDiv = this.div;
+        const indicatorChartDiv = this.indicator_div;
+        const scale = this.scale;
+
+        let isResizing = false;
+
+        const onMouseMove = (event: MouseEvent) => {
+            if (!isResizing) return;
+
+            // Calculate new heights based on mouse position
+            const totalHeight = candlestickChartDiv.offsetHeight + indicatorChartDiv.offsetHeight;
+            const indicatorHeight = Math.min(
+                Math.max(20, totalHeight - event.clientY),
+                totalHeight - 50 // Minimum height for the candlestick chart
+            );
+            const candlestickHeight = totalHeight - indicatorHeight;
+
+            // Update proportional heights
+            scale.height = (indicatorHeight / window.innerHeight) * 100;
+
+            // Update chart dimensions
+            candlestickChartDiv.style.height = `${candlestickHeight}px`;
+            indicatorChartDiv.style.height = `${indicatorHeight}px`;
+        };
+
+        const onMouseUp = () => {
+            isResizing = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        resizeHandle.addEventListener('mousedown', (event: MouseEvent) => {
+            isResizing = true;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
     }
 
     addIndicator(name: string, options: DeepPartial<LineStyleOptions & SeriesOptionsCommon>) {
