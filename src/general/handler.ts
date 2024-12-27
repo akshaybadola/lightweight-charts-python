@@ -32,10 +32,8 @@ export interface Scale{
 }
 
 type IndicatorType = {
-    name: string;
-    series: ISeriesApi<SeriesType>;
-
-}
+    [key: string]: ISeriesApi<SeriesType>;
+};
 
 
 globalParamInit();
@@ -67,6 +65,7 @@ export class Handler {
     public alerts: UserPriceAlerts[] = [];
 
     public _seriesList: ISeriesApi<SeriesType>[] = [];
+
 
     // TODO find a better solution rather than the 'position' parameter
     constructor(
@@ -119,12 +118,16 @@ export class Handler {
 
         this.reSize()
         if (!autoSize) return
-        window.addEventListener('resize', () => this.reSize())
+        window.addEventListener('resize', () => {
+            this.reSize();
+            this.resizeIndicatorsToWindow();
+        })
     }
 
     reSize() {
         let topBarOffset = this.scale.height !== 0 ? this._topBar?._div.offsetHeight || 0 : 0
-        this.chart.resize(window.innerWidth * this.scale.width, (window.innerHeight * this.scale.height) - topBarOffset)
+        this.chart.resize(window.innerWidth * this.scale.width,
+                          (window.innerHeight * this.scale.height) - topBarOffset)
         this.wrapper.style.width = `${100 * this.scale.width}%`
         this.wrapper.style.height = `${100 * this.scale.height}%`
 
@@ -350,6 +353,11 @@ export class Handler {
         console.log("Indicator chart set new height", window.innerHeight * this.scale.height * scaleHeight);
         this.indicator_chart.resize(window.innerWidth * this.scale.width,
                                     window.innerHeight * this.scale.height * scaleHeight);
+    }
+
+    resizeIndicatorsToWindow(){
+        this.indicator_chart.resize(window.innerWidth * this.scale.width,
+                                    window.innerHeight * this.scale.height * .2);
     }
 
     showIndicators(){

@@ -543,12 +543,11 @@ class Candlestick(SeriesCommon):
         # FIXME: YUCK!
         self.run_script(f'{self._chart.id}.series.setData({js_data(df)})')
 
-        if 'volume' not in df:
-            return
-        volume = df.drop(columns=['open', 'high', 'low', 'close']).rename(columns={'volume': 'value'})
-        volume['color'] = self._volume_down_color
-        volume.loc[df['close'] > df['open'], 'color'] = self._volume_up_color
-        self.run_script(f'{self._chart.id}.volumeSeries.setData({js_data(volume)})')
+        if 'volume' in df:
+            volume = df.drop(columns=['open', 'high', 'low', 'close']).rename(columns={'volume': 'value'})
+            volume['color'] = self._volume_down_color
+            volume.loc[df['close'] > df['open'], 'color'] = self._volume_up_color
+            self.run_script(f'{self._chart.id}.volumeSeries.setData({js_data(volume)})')
         return df
 
     def update(self, series: pd.Series, _from_tick=False):
@@ -688,15 +687,32 @@ class Container(Pane):
             self.toolbox: ToolBox = ToolBox(self)
         self._indicators = {}
         self._exit_hook: list[Callable] = []
+        self._min_date = None
+        self._timeframe = "1min"
 
-    def set(self, data: Optional[pd.DataFrame] = None, keep_drawings=False):
+    def update_historical_data(self, data: pd.DataFrame):
+        if not data.index.max() < self._data.index.min():
+            print("Trying to update mismatched time data", self._data, data)
+            return
+        self._data = pd.concat([data.copy(), self._data])
+        self._min_date = self._data.index.min().date()
+        df = self._candlestick.set(self._data)
+        self._post_set_data(df)
+
+    def set(self, data: pd.DataFrame, keep_drawings=False):
+        self._data = data.copy()
+        self._min_date = self._data.index.min().date()
         df = self._candlestick.set(data)
+        self._post_set_data(df, keep_drawings)
         # TODO: Separate user data from market data
         #       E.g. Orders or other lines which are placed by the user,
         #       WHICH ARE NOT YET EXECUTED should be saved and restored
 
         #       While ORDERS WHICH HAVE BEEN EXECUTED, should be there as markers
         #       which can be fetched from the service.
+
+    # TODO: line should have `transform` variable which keeps the method used to create the line
+    def _post_set_data(self, df, keep_drawings=False):
         for line in self._lines:
             if line.name not in df.columns:
                 continue
@@ -711,6 +727,7 @@ class Container(Pane):
             self.run_script(f'{self.id}.toolBox?._drawingTool.repositionOnTime()')
         else:
             self.run_script(f"{self.id}.toolBox?.clearDrawings()")
+
 
     def update(self, series: pd.Series, _from_tick=False):
         return self._candlestick.update(series, _from_tick)

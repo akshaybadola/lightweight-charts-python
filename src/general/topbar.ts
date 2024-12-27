@@ -36,6 +36,17 @@ export class TopBar {
         this.right = createTopBarContainer('flex-end')
     }
 
+    private timeToMinutes(time: string): number {
+        const [hours, minutes] = time.split(':').map(Number);
+        return hours * 60 + minutes;
+    }
+
+    private minutesToTime(minutes: number): string {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    }
+
     makeSwitcher(items: string[], defaultItem: string, callbackName: string, align='left') {
         const switcherElement = document.createElement('div');
         switcherElement.style.margin = '4px 12px'
@@ -113,17 +124,20 @@ export class TopBar {
         }
     }
 
-    makeMenu(items: string[], activeItem: string, separator: boolean, callbackName: string, align: 'right'|'left') {
+    makeMenu(items: string[], activeItem: string, separator: boolean,
+             callbackName: string, align: 'right'|'left') {
         return new Menu(this.makeButton.bind(this), callbackName, items, activeItem, separator, align)
     }
 
-    makeCheckboxMenu(name: string, items: string[], separator: boolean, callbackName: string, align: 'right'|'left') {
+    makeCheckboxMenu(name: string, items: string[], separator: boolean,
+                     callbackName: string, align: 'right'|'left') {
         console.log("Checkbox menu handler", this._handler);
         return new CheckboxMenu(this.makeButton.bind(this), callbackName, name, items, separator, align,
                                 this._handler.id)
     }
 
-    makeButton(defaultText: string, callbackName: string | null, separator: boolean, append=true, align='left', toggle=false) {
+    makeButton(defaultText: string, callbackName: string | null, separator: boolean,
+               append=true, align='left', toggle=false) {
         let button = document.createElement('button')
         button.classList.add('topbar-button');
         // button.style.color = window.pane.color
@@ -161,6 +175,59 @@ export class TopBar {
         separator.classList.add('topbar-seperator')
         const div = align == 'left' ? this.left : this.right
         div.appendChild(separator)
+    }
+
+    makeSlider(
+        minTime: string,
+        maxTime: string,
+        stepMinutes: number,
+        initialValue: string,
+        callbackName: string,
+        debounceDelay: number = 500,
+        align: string = 'left') {
+        const sliderContainer = document.createElement('div');
+        sliderContainer.classList.add('topbar-slider-container');
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = this.timeToMinutes(minTime).toString();
+        slider.max = this.timeToMinutes(maxTime).toString();
+        slider.step = stepMinutes.toString();
+        slider.value = this.timeToMinutes(initialValue).toString();
+        slider.classList.add('topbar-slider');
+
+        const display = document.createElement('span');
+        display.classList.add('topbar-slider-display');
+        display.innerText = initialValue;
+
+        sliderContainer.appendChild(display);
+        sliderContainer.appendChild(slider);
+
+        let debounceTimeout: number | undefined;
+
+        const handleSliderChange = (e) => {
+            console.log(e);
+            const minutes = parseInt(slider.value, 10);
+            const time = this.minutesToTime(minutes);
+            display.innerText = time;
+            if (debounceTimeout) {
+                clearTimeout(debounceTimeout);
+            }
+            debounceTimeout = window.setTimeout(() => {
+                window.callbackFunction(`${widget.callbackName}_~_${time}`);
+            }, debounceDelay);
+        };
+
+        let widget = {
+            elem: sliderContainer,
+            callbackName: callbackName
+        }
+
+        slider.addEventListener('input', e => handleSliderChange(e));
+
+        this.appendWidget(sliderContainer, align, false);
+
+        return slider;
     }
 
     appendWidget(widget: HTMLElement, align: string, separator: boolean) {

@@ -116,6 +116,22 @@ class ButtonWidget(Widget):
         self.run_script(f'{self.id}.elem.innerText = "{string}"')
 
 
+class SliderWidget(Widget):
+    def __init__(self, topbar, min_time: str = "9:00", max_time: str = "15:00",
+                 step_minutes: int = 1, initial_value: str = "15:00", debounce_delay: int = 500,
+                 align: str = "left", func: Optional[Callable] = None):
+        super().__init__(topbar, value=initial_value, func=func, convert_boolean=False)
+        params = ", ".join([f'"{min_time}"',
+                            f'"{max_time}"',
+                            f'{step_minutes}',
+                            f'"{initial_value}"',
+                            f'"{self.id}"',
+                            f'debounce_delay={debounce_delay}',
+                            f'align="{align}"'])
+        script = f'{self.id} = {topbar.id}.makeSlider({params})'
+        self.run_script(script)
+
+
 class TopBar(Pane):
     def __init__(self, chart):
         super().__init__(chart.win)
@@ -163,3 +179,10 @@ class TopBar(Pane):
                align: ALIGN = 'left', toggle: bool = False, func: Optional[Callable] = None):
         self._create()
         self._widgets[name] = ButtonWidget(self, button_text, separator, align, toggle, func)
+
+    def slider(self, min_time: str = "9:00", max_time: str = "15:00", step_minutes: int = 1,
+               initial_value: str = "15:00", debounce_delay: int = 500,
+               align: str = "left", func: Optional[Callable] = None):
+        self._create()
+        self._widgets["slider"] = SliderWidget(self, min_time, max_time, step_minutes,
+                                               initial_value, debounce_delay, align, func)

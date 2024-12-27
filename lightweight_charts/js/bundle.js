@@ -1799,6 +1799,75 @@ var Lib = (function (exports, lightweightCharts) {
         }
     }
 
+    class CheckboxMenu {
+        makeButton;
+        callbackName;
+        div;
+        isOpen = false;
+        widget;
+        handler_id;
+        checkboxStates = {};
+        constructor(makeButton, callbackName, name, items, separator, align, handler_id) {
+            this.makeButton = makeButton;
+            this.callbackName = callbackName;
+            this.div = document.createElement('div');
+            this.div.classList.add('topbar-menu');
+            this.handler_id = handler_id;
+            this.widget = this.makeButton(name + ' ↓', null, separator, true, align);
+            // Initialize checkbox states
+            items.forEach(item => {
+                this.checkboxStates[item] = false; // Default all to unchecked
+            });
+            this.updateMenuItems(items);
+            this.widget.elem.addEventListener('click', () => {
+                this.isOpen = !this.isOpen;
+                if (!this.isOpen) {
+                    this.div.style.display = 'none';
+                    return;
+                }
+                let rect = this.widget.elem.getBoundingClientRect();
+                this.div.style.display = 'flex';
+                this.div.style.flexDirection = 'column';
+                let center = rect.x + rect.width / 2;
+                this.div.style.left = center - this.div.clientWidth / 2 + 'px';
+                this.div.style.top = rect.y + rect.height + 'px';
+            });
+            document.body.appendChild(this.div);
+        }
+        updateMenuItems(items) {
+            this.div.innerHTML = '';
+            const hid = this.handler_id.split(".")[1];
+            items.forEach(item => {
+                const container = document.createElement('div');
+                container.classList.add('topbar-button');
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.margin = '4px';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.style.marginRight = '8px';
+                checkbox.checked = this.checkboxStates[item];
+                const checkboxId = `topbar-checkbox-${hid}-${item}`;
+                checkbox.id = checkboxId;
+                checkbox.addEventListener('click', () => {
+                    this.checkboxStates[item] = checkbox.checked;
+                    this._clickHandler();
+                });
+                const label = document.createElement('label');
+                label.innerText = item;
+                label.htmlFor = checkboxId;
+                container.appendChild(checkbox);
+                container.appendChild(label);
+                this.div.appendChild(container);
+            });
+        }
+        _clickHandler() {
+            const checkedItems = Object.keys(this.checkboxStates).filter(key => this.checkboxStates[key]);
+            const uncheckedItems = Object.keys(this.checkboxStates).filter(key => !this.checkboxStates[key]);
+            window.callbackFunction(`${this.callbackName}_~_checked:${checkedItems.join(',')};;;unchecked:${uncheckedItems.join(',')}`);
+        }
+    }
+
     class TopBar {
         _handler;
         _div;
@@ -1817,6 +1886,16 @@ var Lib = (function (exports, lightweightCharts) {
             };
             this.left = createTopBarContainer('flex-start');
             this.right = createTopBarContainer('flex-end');
+        }
+        // Add these utility methods to the TopBar class
+        timeToMinutes(time) {
+            const [hours, minutes] = time.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+        minutesToTime(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
         }
         makeSwitcher(items, defaultItem, callbackName, align = 'left') {
             const switcherElement = document.createElement('div');
@@ -1891,6 +1970,10 @@ var Lib = (function (exports, lightweightCharts) {
         makeMenu(items, activeItem, separator, callbackName, align) {
             return new Menu(this.makeButton.bind(this), callbackName, items, activeItem, separator, align);
         }
+        makeCheckboxMenu(name, items, separator, callbackName, align) {
+            console.log("Checkbox menu handler", this._handler);
+            return new CheckboxMenu(this.makeButton.bind(this), callbackName, name, items, separator, align, this._handler.id);
+        }
         makeButton(defaultText, callbackName, separator, append = true, align = 'left', toggle = false) {
             let button = document.createElement('button');
             button.classList.add('topbar-button');
@@ -1928,6 +2011,42 @@ var Lib = (function (exports, lightweightCharts) {
             separator.classList.add('topbar-seperator');
             const div = align == 'left' ? this.left : this.right;
             div.appendChild(separator);
+        }
+        makeSlider(minTime, maxTime, stepMinutes, initialValue, callbackName, debounceDelay = 500, align = 'left') {
+            const sliderContainer = document.createElement('div');
+            sliderContainer.classList.add('topbar-slider-container');
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = this.timeToMinutes(minTime).toString();
+            slider.max = this.timeToMinutes(maxTime).toString();
+            slider.step = stepMinutes.toString();
+            slider.value = this.timeToMinutes(initialValue).toString();
+            slider.classList.add('topbar-slider');
+            const display = document.createElement('span');
+            display.classList.add('topbar-slider-display');
+            display.innerText = initialValue;
+            sliderContainer.appendChild(display);
+            sliderContainer.appendChild(slider);
+            let debounceTimeout;
+            const handleSliderChange = (e) => {
+                console.log(e);
+                const minutes = parseInt(slider.value, 10);
+                const time = this.minutesToTime(minutes);
+                display.innerText = time;
+                if (debounceTimeout) {
+                    clearTimeout(debounceTimeout);
+                }
+                debounceTimeout = window.setTimeout(() => {
+                    window.callbackFunction(`${widget.callbackName}_~_${time}`);
+                }, debounceDelay);
+            };
+            let widget = {
+                elem: sliderContainer,
+                callbackName: callbackName
+            };
+            slider.addEventListener('input', e => handleSliderChange(e));
+            this.appendWidget(sliderContainer, align, false);
+            return slider;
         }
         appendWidget(widget, align, separator) {
             const div = align == 'left' ? this.left : this.right;
@@ -3420,10 +3539,14 @@ var Lib = (function (exports, lightweightCharts) {
         commandFunctions = [];
         wrapper;
         div;
+        indicator_div;
+        indicator_chart;
+        indicators = Object();
         chart;
         scale;
         precision = 2;
         series;
+        candlestickSeries;
         volumeSeries;
         legend;
         _topBar;
@@ -3446,8 +3569,15 @@ var Lib = (function (exports, lightweightCharts) {
             this.div.style.position = 'relative';
             this.wrapper.appendChild(this.div);
             window.containerDiv.append(this.wrapper);
+            this.indicator_div = document.createElement('div');
+            this.indicator_div.style.position = 'relative';
+            this.wrapper.appendChild(this.indicator_div);
+            this.indicator_div.style.display = "none";
+            this.indicator_chart = this.createIndicator();
+            // Handler.syncParentIndicatorChart(this.indicator_div, this, false);
             this.chart = this._createChart();
             this.series = this.createCandlestickSeries();
+            this.candlestickSeries = this.series; // alias
             this.volumeSeries = this.createVolumeSeries();
             this.legend = new Legend(this);
             document.addEventListener('keydown', (event) => {
@@ -3461,7 +3591,10 @@ var Lib = (function (exports, lightweightCharts) {
             this.reSize();
             if (!autoSize)
                 return;
-            window.addEventListener('resize', () => this.reSize());
+            window.addEventListener('resize', () => {
+                this.reSize();
+                this.resizeIndicatorsToWindow();
+            });
         }
         reSize() {
             let topBarOffset = this.scale.height !== 0 ? this._topBar?._div.offsetHeight || 0 : 0;
@@ -3513,6 +3646,14 @@ var Lib = (function (exports, lightweightCharts) {
                 },
                 handleScroll: { vertTouchDrag: true },
             });
+        }
+        setVisible(display) {
+            if (display) {
+                this.div.style.display = "flex";
+            }
+            else {
+                this.div.style.display = "none";
+            }
         }
         createCandlestickSeries() {
             const up = 'rgba(39, 157, 130, 100)';
@@ -3594,6 +3735,90 @@ var Lib = (function (exports, lightweightCharts) {
             const volumeProfile = new VolumeProfile(this.chart, line.series, vpData);
             line.series.attachPrimitive(volumeProfile);
         }
+        createIndicator() {
+            const indicator = lightweightCharts.createChart(this.indicator_div, {
+                width: window.innerWidth * this.scale.width,
+                height: window.innerHeight * this.scale.height * .2,
+                layout: {
+                    textColor: window.pane.color,
+                    background: {
+                        color: '#000000',
+                        type: lightweightCharts.ColorType.Solid,
+                    },
+                    fontSize: 12
+                },
+                rightPriceScale: {
+                    scaleMargins: { top: 0.3, bottom: 0.25 },
+                },
+                timeScale: { timeVisible: true, secondsVisible: false },
+                crosshair: {
+                    mode: lightweightCharts.CrosshairMode.Normal,
+                    vertLine: {
+                        labelBackgroundColor: 'rgb(46, 46, 46)'
+                    },
+                    horzLine: {
+                        labelBackgroundColor: 'rgb(55, 55, 55)'
+                    }
+                },
+                grid: {
+                    vertLines: { color: 'rgba(29, 30, 38, 5)' },
+                    horzLines: { color: 'rgba(29, 30, 58, 5)' },
+                },
+                handleScroll: { vertTouchDrag: true },
+            });
+            this.indicator_div.style.position = 'right';
+            this.indicator_div.style.width = `${100}%`;
+            this.indicator_div.style.height = `${20 * this.scale.height}%`;
+            this.indicator_div.style.display = 'flex';
+            this.indicator_div.style.flexDirection = 'row-reverse';
+            return indicator;
+        }
+        removeIndicator(name) {
+            if (Object.keys(this.indicators).includes(name)) {
+                this.indicator_chart.removeSeries(this.indicators[name]);
+                delete this.indicators[name];
+            }
+        }
+        hideIndicator(name) {
+            if (Object.keys(this.indicators).includes(name)) {
+                this.indicators[name].applyOptions({
+                    visible: false
+                });
+            }
+        }
+        showIndicator(name) {
+            if (Object.keys(this.indicators).includes(name)) {
+                this.indicators[name].applyOptions({
+                    visible: true
+                });
+            }
+        }
+        addIndicator(name, options) {
+            // TODO: remove line if preesnt with same name
+            const line = this.indicator_chart.addLineSeries({ ...options });
+            this.indicators[name] = line;
+            return {
+                name: name,
+                series: line
+            };
+        }
+        resizeIndicators(scaleHeight) {
+            // const height = this.indicator_chart
+            console.log("Indicator chart panesize", this.indicator_chart.paneSize());
+            console.log("Indicator chart set new height", window.innerHeight * this.scale.height * scaleHeight);
+            this.indicator_chart.resize(window.innerWidth * this.scale.width, window.innerHeight * this.scale.height * scaleHeight);
+        }
+        resizeIndicatorsToWindow() {
+            this.indicator_chart.resize(window.innerWidth * this.scale.width, window.innerHeight * this.scale.height * .2);
+        }
+        showIndicators() {
+            this.indicator_div.style.height = `${20 * this.scale.height}%`;
+            this.indicator_div.style.display = "flex";
+        }
+        hideIndicators() {
+            this.indicator_div.style.height = `${0 * this.scale.height}%`;
+            this.indicator_div.style.display = "none";
+        }
         createUserPriceAlert(symbol) {
             const alert = new UserPriceAlerts();
             alert.setSymbolName(symbol);
@@ -3673,6 +3898,38 @@ var Lib = (function (exports, lightweightCharts) {
             if (crosshairOnly)
                 return;
             parentChart.chart.timeScale().subscribeVisibleLogicalRangeChange(setChildRange);
+        }
+        syncParentIndicatorChart(crosshairOnly = false) {
+            const indicatorChart = this.indicator_chart;
+            function crosshairHandler(chart, point) {
+                if (!point) {
+                    chart.clearCrosshairPosition();
+                    return;
+                }
+                chart.setCrosshairPosition(point.value || point.close, point.time, chart.series);
+            }
+            function getPoint(series, param) {
+                if (!param.time)
+                    return null;
+                return param.seriesData.get(series) || null;
+            }
+            console.log("this, indicator", this, indicatorChart);
+            const parentTimeScale = this.chart.timeScale();
+            const indicatorTimeScale = indicatorChart.timeScale();
+            const setIndicatorRange = (timeRange) => {
+                if (timeRange)
+                    indicatorTimeScale.setVisibleLogicalRange(timeRange);
+            };
+            const setIndicatorCrosshair = (param) => {
+                crosshairHandler(indicatorChart, getPoint(this.series, param));
+            };
+            this.chart.subscribeCrosshairMove(setIndicatorCrosshair);
+            const parentRange = parentTimeScale.getVisibleLogicalRange();
+            if (parentRange)
+                indicatorTimeScale.setVisibleLogicalRange(parentRange);
+            if (!crosshairOnly) {
+                this.chart.timeScale().subscribeVisibleLogicalRangeChange(setIndicatorRange);
+            }
         }
         static makeSearchBox(chart, items) {
             const searchWindow = document.createElement('div');
@@ -3849,7 +4106,6 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
                 th.style.backgroundColor = backgroundColors.length > 0 ? backgroundColors[i] : tableBackgroundColor;
                 th.style.color = textColors[i];
                 th.addEventListener('click', () => window.callbackFunction(`${this._root_id}_~_heading;;;${this.headings[i]}`));
-                console.log(this._div, this._root_id);
                 row.appendChild(th);
             }
             let overflowWrapper = document.createElement('div');
@@ -3994,7 +4250,6 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
         flashRow(rowId) {
             const row = this.rows[rowId];
             row.classList.add('flash');
-            console.log(row.classList);
         }
         stopFlashRow(rowId) {
             const row = this.rows[rowId];

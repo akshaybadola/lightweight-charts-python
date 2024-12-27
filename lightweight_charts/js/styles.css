@@ -137,6 +137,65 @@ body {
 	font-weight: 500;
 }
 
+/* Slider container */
+.topbar-slider-container {
+    display: flex;
+    align-items: center;
+    margin: 4px 10px;
+    font-size: 13px;
+    color: var(--color);
+}
+
+/* Slider input */
+.topbar-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 150px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--hover-bg-color);
+    outline: none;
+    transition: background-color 0.3s;
+    margin-left: 10px;
+}
+
+.topbar-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.topbar-slider::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color);
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.topbar-slider:hover {
+    background: var(--click-bg-color);
+}
+
+.topbar-slider::-webkit-slider-thumb:hover,
+.topbar-slider::-moz-range-thumb:hover {
+    background: var(--hover-bg-color);
+}
+
+/* Slider value display */
+.topbar-slider-display {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color);
+    margin-right: 8px;
+}
+
 .switcher-button:active {
 	background-color: var(--click-bg-color);
 	color: var(--color);
