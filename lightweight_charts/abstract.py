@@ -988,8 +988,11 @@ class Container(Pane):
             kwargs["sync_id"] = self.id
         return self.win.create_subchart(**kwargs)
 
-    def create_price_alert(self, symbol):
+    def create_user_price_alert(self, symbol):
         self.run_script(f'{self.id}.createUserPriceAlert("{symbol}");')
+
+    def create_user_price_line(self):
+        self.run_script(f'{self.id}.createUserPriceLine();')
 
     def create_volume_profile(self, data):
         price = data[["last_trade_time", "last_price"]]\

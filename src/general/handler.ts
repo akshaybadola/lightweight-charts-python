@@ -24,6 +24,7 @@ import { UserPriceAlerts } from "../user-price-alerts/user-price-alerts";
 import { UserAlertInfo } from "../user-price-alerts/state";
 import { VolumeProfile } from "../volume-profile/volume-profile";
 import { DeltaTooltipPrimitive } from '../delta-tooltip/delta-tooltip';
+import { UserPriceLines } from '../user-price-lines/user-price-lines';
 
 
 export interface Scale{
@@ -64,7 +65,7 @@ export class Handler {
 
     public alerts: UserPriceAlerts[] = [];
 
-    public _seriesList: ISeriesApi<SeriesType>[] = [];
+    public _seriesMap: { [name: string]: ISeriesApi<SeriesType> } = {};
 
 
     // TODO find a better solution rather than the 'position' parameter
@@ -214,7 +215,7 @@ export class Handler {
 
     createLineSeries(name: string, options: DeepPartial<LineStyleOptions & SeriesOptionsCommon>) {
         const line = this.chart.addLineSeries({...options});
-        this._seriesList.push(line);
+        this._seriesMap[name] = line;
         this.legend.makeSeriesRow(name, line)
         return {
             name: name,
@@ -224,7 +225,7 @@ export class Handler {
 
     createHistogramSeries(name: string, options: DeepPartial<HistogramStyleOptions & SeriesOptionsCommon>) {
         const line = this.chart.addHistogramSeries({...options});
-        this._seriesList.push(line);
+        this._seriesMap[name] = line;
         this.legend.makeSeriesRow(name, line)
         return {
             name: name,
@@ -435,6 +436,10 @@ export class Handler {
             console.log(`❌ Alert removed with the id: ${id}`);
         });
         this.alerts.push(alert);
+    };
+
+    createUserPriceLine () {
+        new UserPriceLines(this.chart, this.series, { color: 'hotpink' });
     };
 
     createDeltaToolTip () {

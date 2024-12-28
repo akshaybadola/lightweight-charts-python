@@ -206,7 +206,6 @@ export class TopBar {
         let debounceTimeout: number | undefined;
 
         const handleSliderChange = (e) => {
-            console.log(e);
             const minutes = parseInt(slider.value, 10);
             const time = this.minutesToTime(minutes);
             display.innerText = time;

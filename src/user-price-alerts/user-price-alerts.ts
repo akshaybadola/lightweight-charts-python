@@ -20,7 +20,7 @@ import {
 } from './constants';
 
 import { AlertRendererData, IRendererData } from './irenderer-data';
-import { MouseHandlers, MousePosition } from './mouse';
+import { MouseHandlers, MousePosition } from '../helpers/mouse';
 import { UserAlertPricePaneView } from './pane-view';
 import { UserAlertInfo, UserAlertsState } from './state';
 import { GlobalParams } from "../general/global-params";
