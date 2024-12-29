@@ -8,7 +8,9 @@ import {
 	SeriesOptionsMap,
 	UTCTimestamp,
 	WhitespaceData,
+  MouseEventParams,
 } from 'lightweight-charts';
+
 import {
 	MarkersAlert,
 	IMarkers,
@@ -32,10 +34,9 @@ function hasClose(data: OhlcData): data is OhlcData {
 
 export class ExpiringMarkers implements IMarkers {
 	_options: MarkersOptions;
-	_chart: IChartApi | null = null;
+	_chart: IChartApi;
 	_series: ISeriesApi<keyof SeriesOptionsMap>;
 	_primitive: MarkersPrimitive;
-
 	_whitespaceSeriesStart: number | null = null;
 	_whitespaceSeriesEnd: number | null = null;
 	_whitespaceSeries: ISeriesApi<'Line'>;
@@ -61,15 +62,25 @@ export class ExpiringMarkers implements IMarkers {
 			10000,
 			MismatchDirection.NearestLeft
 		);
-		if (currentLastPoint) this.checkedCrossed(currentLastPoint);
 
 		this._chart = this._primitive.chart;
 		this._whitespaceSeries = this._chart.addLineSeries();
+    // document.addEventListener('mousedown', this._onMouseDown.bind(this));
+    // document.addEventListener('mousemove', this._onMouseMove.bind(this));
+    // document.addEventListener('mouseup', this._onMouseUp.bind(this));
+    this._chart.subscribeClick(this._clickHandler);
+    this._chart.subscribeCrosshairMove(this._moveHandler);
+
+		if (currentLastPoint) this.checkedCrossed(currentLastPoint);
 	}
+
+  private _clickHandler = (param: MouseEventParams) => this._onClick(param);
+  private _moveHandler = (param: MouseEventParams) => this._onMouseMove(param);
 
 	destroy() {
 		this._series.unsubscribeDataChanged(this._dataChangedHandler);
 		this._series.detachPrimitive(this._primitive);
+    this._chart.unsubscribeCrosshairMove(this._moveHandler);
 	}
 
 	alerts() {
@@ -86,7 +97,7 @@ export class ExpiringMarkers implements IMarkers {
 		price: number,
 		startDate: number,
 		endDate: number,
-		parameters: MarkersParameters
+		parameters: MarkersParameters,
 	): string {
 		let id = (Math.random() * 100000).toFixed();
 		while (this._alerts.has(id)) {
@@ -97,6 +108,7 @@ export class ExpiringMarkers implements IMarkers {
 			start: startDate,
 			end: endDate,
 			parameters,
+      moving: false,
 			crossed: false,
 			expired: false,
 		});
@@ -226,6 +238,98 @@ export class ExpiringMarkers implements IMarkers {
 			data.push({ time: time as UTCTimestamp });
 		}
 		return data;
+	}
+
+  private _checkXButtonClick(param: MouseEventParams): boolean {
+    if (!param.point || !param.point.x || !this._series) return false;
+
+    const x = param.point.x;
+    const y = param.point.y;
+
+    let id = null;
+    if (x && y) {
+      for (const view of this._primitive._views) {
+        id = view.xyinButton(x, y);
+        if (id) {
+          this._alerts.delete(id);
+		      this._update();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private _onClick(param: MouseEventParams) {
+		if (!param.point || !param.point.x || !this._series) return;
+
+    const deleted = this._checkXButtonClick(param);
+    if (deleted){
+      return;
+    }
+
+
+    for (const [id, alert] of this._alerts.entries()){
+      if (alert.moving){
+        const price = this._getMousePrice(param);
+        if (!price) return;
+        this._alerts.set(id, {
+          price,
+          start: alert.start,
+          end: alert.end,
+          parameters: alert.parameters,
+          moving: false,
+          crossed: false,
+          expired: false,
+        });
+		    this._update();
+        return;
+      }
+    }
+
+		if (!param.point.x || !param.point.y) return;
+
+    const x = param.point.x;
+    const y = param.point.y;
+
+    if (x && y){
+      for (const view of this._primitive._views) {
+        view.xyinBounds(x, y);
+      }
+    }
+  }
+
+	private _onMouseMove(param: MouseEventParams) {
+		if (!param.point || !param.point.x || !this._series) return;
+
+    let id: string | null = null;
+    let price: number | null = null;
+    let alert: MarkersAlert | null = null;
+
+    for (const [_id, _alert] of this._alerts.entries()){
+      if (_alert.moving) {
+        price = this._getMousePrice(param);
+        id = _id;
+        alert = _alert;
+        break;
+      }
+    }
+    if (!id || !price || !alert) return;
+    this._alerts.set(id, {
+      price,
+      start: alert.start,
+      end: alert.end,
+      parameters: alert.parameters,
+      moving: true,
+      crossed: false,
+      expired: false,
+    })
+	}
+
+	private _getMousePrice(param: MouseEventParams) {
+		if (!param.point || !this._series) return null;
+		const price = this._series.coordinateToPrice(param.point.y);
+		return price;
 	}
 
 	_dataChanged() {

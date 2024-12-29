@@ -1,30 +1,60 @@
 import {
 	ISeriesPrimitivePaneView,
 	ISeriesPrimitivePaneRenderer,
-	Time,
 	AutoscaleInfo,
+  Time
 } from 'lightweight-charts';
 import { PluginBase } from '../plugin-base';
 import { ExpiringMarkers } from './markers';
 import { upArrowIcon, tickIcon, cancelIcon, downArrowIcon } from './icons';
+import { MarkersAlert } from './options';
 import { MovableMarkerPaneRenderer,
-         MarkerDataItem } from './marker-renderer';
+         IMarkerDataItem } from './marker-renderer';
 
 class MarkersPaneView implements ISeriesPrimitivePaneView {
 	_source: ExpiringMarkers;
-	  _renderer: MovableMarkerPaneRenderer;
+  _renderer: MovableMarkerPaneRenderer;
 
 	constructor(source: ExpiringMarkers) {
 		this._source = source;
-		  this._renderer = new MovableMarkerPaneRenderer();
+	  this._renderer = new MovableMarkerPaneRenderer();
 	}
 
 	renderer(): ISeriesPrimitivePaneRenderer {
 		return this._renderer;
 	}
 
+	xyinButton(x: number, y: number) : string | null {
+		let i = 0;
+		for (const id of this._source._alerts.keys()) {
+			const bounds = this._renderer.iconBounds[i];
+			if (! bounds) continue;
+			if (x && (x > bounds.x && x < bounds.x + bounds.width) &&
+				y && (y > bounds.y && y < bounds.y + bounds.height)){
+				return id;
+      }
+			i++;
+		}
+		return null;
+	}
+
+	xyinBounds(x: number, y: number){
+		let i = 0;
+		for (const alert of this._source._alerts.values()){
+			const bounds = this._renderer.markerBounds[i];
+			if (! bounds) continue;
+			if (x && x > bounds.x && x < bounds.x + bounds.width &&
+				y && y > bounds.y && y < bounds.y + bounds.height){
+				alert.moving = true;
+				console.log("Set alert moving", alert);
+				break;
+      }
+			i++;
+		}
+	}
+
 	update() {
-		const data: MarkerDataItem[] = [];
+		const data: IMarkerDataItem[] = [];
 		const ts = this._source._chart?.timeScale();
 		if (ts) {
 			for (const alert of this._source._alerts.values()) {
@@ -70,7 +100,7 @@ class MarkersPaneView implements ISeriesPrimitivePaneView {
 					endX,
 					color,
 					icon,
-					text: alert.parameters.title,
+					text: `${alert.price.toFixed(2)} x 100`,
 					fade: alert.expired,
 				});
 			}
@@ -82,12 +112,74 @@ class MarkersPaneView implements ISeriesPrimitivePaneView {
 export class MarkersPrimitive extends PluginBase {
 	_source: ExpiringMarkers;
 	_views: MarkersPaneView[];
+	_states: boolean[];
+
+  // private _clickHandler = (param: MouseEventParams) => this._onClick(param);
+  // private _moveHandler = (param: MouseEventParams) => this._onMouseMove(param);
 
 	constructor(source: ExpiringMarkers) {
 		super();
 		this._source = source;
 		this._views = [new MarkersPaneView(this._source)];
+		this._states = [];
 	}
+
+	// private _onClick(param: MouseEventParams) {
+	// 	const price = this._getMousePrice(param);
+	// 	const xDistance = this._distanceFromRightScale(param);
+	// 	console.log("price line on click", price, xDistance);
+	// 	if (
+	// 		price === null ||
+	// 		xDistance === null ||
+	// 		xDistance > LABEL_HEIGHT ||
+	// 		!this._series
+	// 	)
+	// 		return;
+	// 	const data = this._series.data();
+	// 	this.markers.addMarker(
+	// 		price,
+	// 		data[data.length - 1].time as number,
+	// 		data[data.length - 1].time as number + 19800 * 100,
+	// 		{
+	// 			crossingDirection: 'down',
+	// 			title: '$19.50'
+	// 		}
+	// 	);
+	// }
+
+	// private _onMouseMove(param: MouseEventParams) {
+	// 	const price = this._getMousePrice(param);
+	// 	const xDistance = this._distanceFromRightScale(param);
+	// 	if (price === null || xDistance === null || xDistance > LABEL_HEIGHT * 2) {
+	// 		this._labelButtonPrimitive.hideAddLabel();
+	// 		return;
+	// 	}
+	// 	this._labelButtonPrimitive.showAddLabel(price, xDistance < LABEL_HEIGHT);
+	// }
+
+	// private _getMousePrice(param: MouseEventParams) {
+	// 	if (!param.point || !this._series) return null;
+	// 	const price = this._series.coordinateToPrice(param.point.y);
+	// 	return price;
+	// }
+
+	// private _distanceFromRightScale(param: MouseEventParams) {
+	// 	if (!param.point || !this._chart) return null;
+	// 	const timeScaleWidth = this._chart.timeScale().width();
+	// 	return Math.abs(timeScaleWidth - param.point.x);
+	// }
+
+	// remove() {
+	// 	if (this._chart) {
+	// 		this._chart.unsubscribeClick(this._clickHandler);
+	// 		this._chart.unsubscribeCrosshairMove(this._moveHandler);
+	// 	}
+	// 	if (this._series && this._labelButtonPrimitive) {
+	// 		this._series.detachPrimitive(this._labelButtonPrimitive);
+	// 	}
+	// 	this._chart = undefined;
+	// 	this._series = undefined;
+	// }
 
 	requestUpdate() {
 		super.requestUpdate();

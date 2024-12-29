@@ -288,7 +288,7 @@ var Lib = (function (exports, lightweightCharts) {
         }
     }
 
-    const defaultOptions$2 = {
+    const defaultOptions$4 = {
         lineColor: '#1E80F0',
         lineStyle: lightweightCharts.LineStyle.Solid,
         width: 4,
@@ -318,7 +318,7 @@ var Lib = (function (exports, lightweightCharts) {
         constructor(options) {
             super();
             this._options = {
-                ...defaultOptions$2,
+                ...defaultOptions$4,
                 ...options,
             };
         }
@@ -878,7 +878,7 @@ var Lib = (function (exports, lightweightCharts) {
             this.points.push(p1);
             this.points.push(p2);
             this._options = {
-                ...defaultOptions$2,
+                ...defaultOptions$4,
                 ...options,
             };
         }
@@ -1015,7 +1015,7 @@ var Lib = (function (exports, lightweightCharts) {
     const defaultBoxOptions = {
         fillEnabled: true,
         fillColor: 'rgba(255, 255, 255, 0.2)',
-        ...defaultOptions$2
+        ...defaultOptions$4
     };
     class Box extends TwoPointDrawing {
         _type = "Box";
@@ -1887,7 +1887,6 @@ var Lib = (function (exports, lightweightCharts) {
             this.left = createTopBarContainer('flex-start');
             this.right = createTopBarContainer('flex-end');
         }
-        // Add these utility methods to the TopBar class
         timeToMinutes(time) {
             const [hours, minutes] = time.split(':').map(Number);
             return hours * 60 + minutes;
@@ -2029,7 +2028,6 @@ var Lib = (function (exports, lightweightCharts) {
             sliderContainer.appendChild(slider);
             let debounceTimeout;
             const handleSliderChange = (e) => {
-                console.log(e);
                 const minutes = parseInt(slider.value, 10);
                 const time = this.minutesToTime(minutes);
                 display.innerText = time;
@@ -2044,7 +2042,7 @@ var Lib = (function (exports, lightweightCharts) {
                 elem: sliderContainer,
                 callbackName: callbackName
             };
-            slider.addEventListener('input', e => handleSliderChange(e));
+            slider.addEventListener('input', e => handleSliderChange());
             this.appendWidget(sliderContainer, align, false);
             return slider;
         }
@@ -3134,7 +3132,7 @@ var Lib = (function (exports, lightweightCharts) {
         _data;
         constructor(data) {
             this._data = {
-                ...defaultOptions$1,
+                ...defaultOptions$3,
                 ...data,
             };
         }
@@ -3151,7 +3149,7 @@ var Lib = (function (exports, lightweightCharts) {
             return 'top';
         }
     }
-    const defaultOptions$1 = {
+    const defaultOptions$3 = {
         deltaTopLine: '',
         deltaBottomLine: '',
         deltaBackgroundColor: '#ffffff',
@@ -3311,7 +3309,7 @@ var Lib = (function (exports, lightweightCharts) {
         }
     }
 
-    const defaultOptions = {
+    const defaultOptions$2 = {
         lineColor: 'rgba(0, 0, 0, 0.2)',
         priceExtractor: (data) => {
             if (data.value !== undefined) {
@@ -3340,7 +3338,7 @@ var Lib = (function (exports, lightweightCharts) {
         _activeRange = new Delegate();
         constructor(options) {
             this._options = {
-                ...defaultOptions,
+                ...defaultOptions$2,
                 ...options,
             };
             this._tooltipData = {
@@ -3533,6 +3531,809 @@ var Lib = (function (exports, lightweightCharts) {
         }
     }
 
+    const defaultOptions$1 = {
+        interval: 60 * 60 * 24,
+        clearTimeout: 3000,
+    };
+
+    const upArrowIcon = new Path2D('M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z');
+    const downArrowIcon = new Path2D('M6.28 5.22a.75.75 0 00-1.06 1.06l7.22 7.22H6.75a.75.75 0 000 1.5h7.5a.747.747 0 00.75-.75v-7.5a.75.75 0 00-1.5 0v5.69L6.28 5.22z');
+    const tickIcon = new Path2D('M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z');
+    const cancelIcon = new Path2D('M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z');
+    const iconDimensions = 20;
+
+    class MovableMarkerPaneRenderer {
+        _data = [];
+        // Store icon positions
+        iconBounds = [];
+        markerBounds = [];
+        data() {
+            return this._data;
+        }
+        update(data) {
+            this._data = data;
+            this.iconBounds = [];
+            this.markerBounds = [];
+        }
+        draw(target) {
+            let pixelRatio = 1;
+            target.useBitmapCoordinateSpace(scope => {
+                pixelRatio = scope.verticalPixelRatio;
+            });
+            target.useMediaCoordinateSpace(scope => {
+                if (!this._data.length) {
+                    return;
+                }
+                const ctx = scope.context;
+                this._data.forEach(d => {
+                    const priceLineY = positionsLine(d.priceY, pixelRatio, ctx.lineWidth);
+                    const priceY = (priceLineY.position + priceLineY.length / 2) / pixelRatio;
+                    const color = d.color;
+                    // Coordinates for the marker
+                    const markerWidth = 100 * pixelRatio;
+                    const markerHeight = 20 * pixelRatio;
+                    const markerX = scope.mediaSize.width - markerWidth - 20 * pixelRatio; // Align near the right axis
+                    const markerY = priceY - markerHeight / 2;
+                    const startX = markerX + markerWidth / 2;
+                    ctx.fillStyle = d.color;
+                    ctx.strokeStyle = d.color;
+                    ctx.lineDashOffset = 0;
+                    ctx.globalAlpha = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(startX + 4, priceY);
+                    ctx.lineTo(markerX, priceY);
+                    ctx.stroke();
+                    // dotted lines
+                    ctx.beginPath();
+                    ctx.setLineDash([4, 2]);
+                    ctx.lineCap = 'round';
+                    ctx.moveTo(startX, priceY);
+                    ctx.lineTo(scope.mediaSize.width, priceY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // Draw the marker rectangle
+                    ctx.fillStyle = color;
+                    if (ctx.roundRect) {
+                        ctx.roundRect(markerX, markerY, markerWidth, markerHeight, markerHeight / 2);
+                        ctx.fill();
+                    }
+                    else {
+                        ctx.fillRect(markerX, markerY, markerWidth, markerHeight);
+                    }
+                    // Draw the price text inside the marker
+                    ctx.font = `${12 * pixelRatio}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#FFFFFF'; // White text
+                    ctx.fillText(`${d.text}`, markerX + markerWidth / 2, markerY + markerHeight / 2);
+                    // Draw the cancel icon
+                    ctx.save(); // Save the canvas state
+                    const iconX = markerX + markerWidth - 100 * pixelRatio; // Position the icon relative to the marker
+                    const iconY = markerY + markerHeight / 2 - 6 * pixelRatio; // Center the icon vertically
+                    ctx.translate(iconX, iconY);
+                    const scale = 12 / iconDimensions * pixelRatio; // Adjust scale for pixel ratio
+                    ctx.scale(scale, scale);
+                    ctx.fillStyle = '#FFFFFF'; // Icon color
+                    ctx.fill(cancelIcon, 'evenodd'); // Draw the icon
+                    ctx.restore(); // Restore the canvas state
+                    this.markerBounds.push({
+                        x: markerX,
+                        y: markerY,
+                        width: markerWidth,
+                        height: markerHeight
+                    });
+                    this.iconBounds.push({
+                        x: iconX,
+                        y: iconY,
+                        width: iconDimensions * pixelRatio,
+                        height: iconDimensions * pixelRatio,
+                    });
+                    // ctx.translate(d.startX - 100 - 14, priceY - 6);
+                    // const scale = 12 / iconDimensions;
+                    // ctx.scale(scale, scale);
+                    // ctx.fill(cancelIcon, 'evenodd');
+                });
+            });
+        }
+        drawBackground() {
+            // No background drawing required
+        }
+        height() {
+            return 0; // No effect on chart height
+        }
+    }
+
+    class MarkersPaneView {
+        _source;
+        _renderer;
+        constructor(source) {
+            this._source = source;
+            this._renderer = new MovableMarkerPaneRenderer();
+        }
+        renderer() {
+            return this._renderer;
+        }
+        xyinButton(x, y) {
+            let i = 0;
+            for (const id of this._source._alerts.keys()) {
+                const bounds = this._renderer.iconBounds[i];
+                if (!bounds)
+                    continue;
+                if (x && (x > bounds.x && x < bounds.x + bounds.width) &&
+                    y && (y > bounds.y && y < bounds.y + bounds.height)) {
+                    return id;
+                }
+                i++;
+            }
+            return null;
+        }
+        xyinBounds(x, y) {
+            let i = 0;
+            for (const alert of this._source._alerts.values()) {
+                const bounds = this._renderer.markerBounds[i];
+                if (!bounds)
+                    continue;
+                if (x && x > bounds.x && x < bounds.x + bounds.width &&
+                    y && y > bounds.y && y < bounds.y + bounds.height) {
+                    alert.moving = true;
+                    console.log("Set alert moving", alert);
+                    break;
+                }
+                i++;
+            }
+        }
+        update() {
+            const data = [];
+            const ts = this._source._chart?.timeScale();
+            if (ts) {
+                for (const alert of this._source._alerts.values()) {
+                    const priceY = this._source._series.priceToCoordinate(alert.price);
+                    if (priceY === null)
+                        continue;
+                    let startX = ts.timeToCoordinate(alert.start);
+                    let endX = ts.timeToCoordinate(alert.end);
+                    if (startX === null && endX === null)
+                        continue;
+                    if (!startX)
+                        startX = 0;
+                    if (!endX)
+                        endX = ts.width();
+                    let color = '#000000';
+                    let icon = upArrowIcon;
+                    if (alert.parameters.crossingDirection === 'up') {
+                        color = alert.crossed
+                            ? '#386D2E'
+                            : alert.expired
+                                ? '#30472C'
+                                : '#64C750';
+                        icon = alert.crossed
+                            ? tickIcon
+                            : alert.expired
+                                ? cancelIcon
+                                : upArrowIcon;
+                    }
+                    else if (alert.parameters.crossingDirection === 'down') {
+                        color = alert.crossed
+                            ? '#7C1F3E'
+                            : alert.expired
+                                ? '#4A2D37'
+                                : '#C83264';
+                        icon = alert.crossed
+                            ? tickIcon
+                            : alert.expired
+                                ? cancelIcon
+                                : downArrowIcon;
+                    }
+                    data.push({
+                        priceY,
+                        startX,
+                        endX,
+                        color,
+                        icon,
+                        text: `${alert.price.toFixed(2)} x 100`,
+                        fade: alert.expired,
+                    });
+                }
+            }
+            this._renderer.update(data);
+        }
+    }
+    class MarkersPrimitive extends PluginBase {
+        _source;
+        _views;
+        _states;
+        // private _clickHandler = (param: MouseEventParams) => this._onClick(param);
+        // private _moveHandler = (param: MouseEventParams) => this._onMouseMove(param);
+        constructor(source) {
+            super();
+            this._source = source;
+            this._views = [new MarkersPaneView(this._source)];
+            this._states = [];
+        }
+        // private _onClick(param: MouseEventParams) {
+        // 	const price = this._getMousePrice(param);
+        // 	const xDistance = this._distanceFromRightScale(param);
+        // 	console.log("price line on click", price, xDistance);
+        // 	if (
+        // 		price === null ||
+        // 		xDistance === null ||
+        // 		xDistance > LABEL_HEIGHT ||
+        // 		!this._series
+        // 	)
+        // 		return;
+        // 	const data = this._series.data();
+        // 	this.markers.addMarker(
+        // 		price,
+        // 		data[data.length - 1].time as number,
+        // 		data[data.length - 1].time as number + 19800 * 100,
+        // 		{
+        // 			crossingDirection: 'down',
+        // 			title: '$19.50'
+        // 		}
+        // 	);
+        // }
+        // private _onMouseMove(param: MouseEventParams) {
+        // 	const price = this._getMousePrice(param);
+        // 	const xDistance = this._distanceFromRightScale(param);
+        // 	if (price === null || xDistance === null || xDistance > LABEL_HEIGHT * 2) {
+        // 		this._labelButtonPrimitive.hideAddLabel();
+        // 		return;
+        // 	}
+        // 	this._labelButtonPrimitive.showAddLabel(price, xDistance < LABEL_HEIGHT);
+        // }
+        // private _getMousePrice(param: MouseEventParams) {
+        // 	if (!param.point || !this._series) return null;
+        // 	const price = this._series.coordinateToPrice(param.point.y);
+        // 	return price;
+        // }
+        // private _distanceFromRightScale(param: MouseEventParams) {
+        // 	if (!param.point || !this._chart) return null;
+        // 	const timeScaleWidth = this._chart.timeScale().width();
+        // 	return Math.abs(timeScaleWidth - param.point.x);
+        // }
+        // remove() {
+        // 	if (this._chart) {
+        // 		this._chart.unsubscribeClick(this._clickHandler);
+        // 		this._chart.unsubscribeCrosshairMove(this._moveHandler);
+        // 	}
+        // 	if (this._series && this._labelButtonPrimitive) {
+        // 		this._series.detachPrimitive(this._labelButtonPrimitive);
+        // 	}
+        // 	this._chart = undefined;
+        // 	this._series = undefined;
+        // }
+        requestUpdate() {
+            super.requestUpdate();
+        }
+        updateAllViews() {
+            this._views.forEach(view => view.update());
+        }
+        paneViews() {
+            return this._views;
+        }
+        autoscaleInfo() {
+            let smallest = Infinity;
+            let largest = -Infinity;
+            for (const alert of this._source._alerts.values()) {
+                if (alert.price < smallest)
+                    smallest = alert.price;
+                if (alert.price > largest)
+                    largest = alert.price;
+            }
+            if (smallest > largest)
+                return null;
+            return {
+                priceRange: {
+                    maxValue: largest,
+                    minValue: smallest,
+                },
+            };
+        }
+    }
+
+    /**
+     * This Plugin will work best with a chart which has a linear time scale.
+     */
+    function hasValue(data) {
+        return data.value !== undefined;
+    }
+    function hasClose(data) {
+        return data.close !== undefined;
+    }
+    class ExpiringMarkers {
+        _options;
+        _chart;
+        _series;
+        _primitive;
+        _whitespaceSeriesStart = null;
+        _whitespaceSeriesEnd = null;
+        _whitespaceSeries;
+        _alerts = new Map();
+        _dataChangedHandler;
+        constructor(series, options) {
+            this._series = series;
+            this._options = {
+                ...defaultOptions$1,
+                ...options,
+            };
+            this._primitive = new MarkersPrimitive(this);
+            this._series.attachPrimitive(this._primitive);
+            this._dataChangedHandler = this._dataChanged.bind(this);
+            this._series.subscribeDataChanged(this._dataChangedHandler);
+            const currentLastPoint = this._series.dataByIndex(10000, lightweightCharts.MismatchDirection.NearestLeft);
+            this._chart = this._primitive.chart;
+            this._whitespaceSeries = this._chart.addLineSeries();
+            // document.addEventListener('mousedown', this._onMouseDown.bind(this));
+            // document.addEventListener('mousemove', this._onMouseMove.bind(this));
+            // document.addEventListener('mouseup', this._onMouseUp.bind(this));
+            this._chart.subscribeClick(this._clickHandler);
+            this._chart.subscribeCrosshairMove(this._moveHandler);
+            if (currentLastPoint)
+                this.checkedCrossed(currentLastPoint);
+        }
+        _clickHandler = (param) => this._onClick(param);
+        _moveHandler = (param) => this._onMouseMove(param);
+        destroy() {
+            this._series.unsubscribeDataChanged(this._dataChangedHandler);
+            this._series.detachPrimitive(this._primitive);
+            this._chart.unsubscribeCrosshairMove(this._moveHandler);
+        }
+        alerts() {
+            return this._alerts;
+        }
+        chart() {
+            return this._chart;
+        }
+        series() {
+            return this._series;
+        }
+        addMarker(price, startDate, endDate, parameters) {
+            let id = (Math.random() * 100000).toFixed();
+            while (this._alerts.has(id)) {
+                id = (Math.random() * 100000).toFixed();
+            }
+            this._alerts.set(id, {
+                price,
+                start: startDate,
+                end: endDate,
+                parameters,
+                moving: false,
+                crossed: false,
+                expired: false,
+            });
+            this._update();
+            console.log("Created alert", this._alerts);
+            return id;
+        }
+        removeExpiringMarker(id) {
+            this._alerts.delete(id);
+            this._update();
+            console.log("Marker expired", this._alerts);
+        }
+        toggleCrossed(id) {
+            const alert = this._alerts.get(id);
+            if (!alert)
+                return;
+            alert.crossed = true;
+            setTimeout(() => {
+                this.removeExpiringMarker(id);
+            }, this._options.clearTimeout);
+            this._update();
+            console.log("Marker crossed", this._alerts);
+        }
+        checkExpired(time) {
+            for (const [id, data] of this._alerts.entries()) {
+                if (data.end <= time) {
+                    data.expired = true;
+                    setTimeout(() => {
+                        this.removeExpiringMarker(id);
+                    }, this._options.clearTimeout);
+                }
+            }
+            this._update();
+        }
+        _lastValue = undefined;
+        checkedCrossedValue(point) {
+            if (!hasValue(point))
+                return;
+            if (this._lastValue !== undefined) {
+                for (const [id, data] of this._alerts.entries()) {
+                    let crossed = false;
+                    console.log("Check crossed", data, point);
+                    if (data.parameters.crossingDirection === 'up') {
+                        if (this._lastValue <= data.price && point.value > data.price) {
+                            crossed = true;
+                        }
+                    }
+                    else if (data.parameters.crossingDirection === 'down') {
+                        if (this._lastValue >= data.price && point.value < data.price) {
+                            crossed = true;
+                        }
+                    }
+                    if (crossed) {
+                        this.toggleCrossed(id);
+                    }
+                }
+            }
+            this._lastValue = point.value;
+        }
+        checkedCrossed(point) {
+            if (!hasClose(point))
+                return;
+            if (this._lastValue !== undefined) {
+                for (const [id, data] of this._alerts.entries()) {
+                    let crossed = false;
+                    if (data.parameters.crossingDirection === 'up') {
+                        if (this._lastValue <= data.price && point.close > data.price) {
+                            crossed = true;
+                        }
+                    }
+                    else if (data.parameters.crossingDirection === 'down') {
+                        if (this._lastValue >= data.price && point.close < data.price) {
+                            crossed = true;
+                        }
+                    }
+                    if (crossed) {
+                        this.toggleCrossed(id);
+                    }
+                }
+            }
+            this._lastValue = point.close;
+        }
+        _update() {
+            let start = Infinity;
+            let end = 0;
+            const hasAlerts = this._alerts.size > 0;
+            for (const [_id, data] of this._alerts.entries()) {
+                if (data.end > end)
+                    end = data.end;
+                if (data.start < start)
+                    start = data.start;
+            }
+            if (!hasAlerts) {
+                start = null;
+                end = null;
+            }
+            if (start) {
+                const lastPlotDate = this._series.dataByIndex(1000000, lightweightCharts.MismatchDirection.NearestLeft)
+                    ?.time ?? start;
+                if (lastPlotDate < start)
+                    start = lastPlotDate;
+            }
+            if (this._whitespaceSeriesStart !== start ||
+                this._whitespaceSeriesEnd !== end) {
+                this._whitespaceSeriesStart = start;
+                this._whitespaceSeriesEnd = end;
+                if (!this._whitespaceSeriesStart || !this._whitespaceSeriesEnd) {
+                    this._whitespaceSeries.setData([]);
+                }
+                else {
+                    this._whitespaceSeries.setData(this._buildWhitespace(this._whitespaceSeriesStart, this._whitespaceSeriesEnd));
+                }
+            }
+            this._primitive.requestUpdate();
+        }
+        _buildWhitespace(start, end) {
+            const data = [];
+            for (let time = start; time <= end; time += this._options.interval) {
+                data.push({ time: time });
+            }
+            return data;
+        }
+        _checkXButtonClick(param) {
+            if (!param.point || !param.point.x || !this._series)
+                return false;
+            const x = param.point.x;
+            const y = param.point.y;
+            let id = null;
+            if (x && y) {
+                for (const view of this._primitive._views) {
+                    id = view.xyinButton(x, y);
+                    if (id) {
+                        this._alerts.delete(id);
+                        this._update();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        _onClick(param) {
+            if (!param.point || !param.point.x || !this._series)
+                return;
+            const deleted = this._checkXButtonClick(param);
+            if (deleted) {
+                return;
+            }
+            for (const [id, alert] of this._alerts.entries()) {
+                if (alert.moving) {
+                    const price = this._getMousePrice(param);
+                    if (!price)
+                        return;
+                    this._alerts.set(id, {
+                        price,
+                        start: alert.start,
+                        end: alert.end,
+                        parameters: alert.parameters,
+                        moving: false,
+                        crossed: false,
+                        expired: false,
+                    });
+                    this._update();
+                    return;
+                }
+            }
+            if (!param.point.x || !param.point.y)
+                return;
+            const x = param.point.x;
+            const y = param.point.y;
+            if (x && y) {
+                for (const view of this._primitive._views) {
+                    view.xyinBounds(x, y);
+                }
+            }
+        }
+        _onMouseMove(param) {
+            if (!param.point || !param.point.x || !this._series)
+                return;
+            let id = null;
+            let price = null;
+            let alert = null;
+            for (const [_id, _alert] of this._alerts.entries()) {
+                if (_alert.moving) {
+                    price = this._getMousePrice(param);
+                    id = _id;
+                    alert = _alert;
+                    break;
+                }
+            }
+            if (!id || !price || !alert)
+                return;
+            this._alerts.set(id, {
+                price,
+                start: alert.start,
+                end: alert.end,
+                parameters: alert.parameters,
+                moving: true,
+                crossed: false,
+                expired: false,
+            });
+        }
+        _getMousePrice(param) {
+            if (!param.point || !this._series)
+                return null;
+            const price = this._series.coordinateToPrice(param.point.y);
+            return price;
+        }
+        _dataChanged() {
+            const lastPoint = this._series.dataByIndex(100000, lightweightCharts.MismatchDirection.NearestLeft);
+            if (!lastPoint)
+                return;
+            this.checkedCrossed(lastPoint);
+            this.checkExpired(lastPoint.time);
+        }
+    }
+
+    const LABEL_HEIGHT = 21;
+    const plusIcon = `M7.5,7.5 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0 M4 7.5H11 M7.5 4V11`;
+    const plusIconPath = new Path2D(plusIcon);
+    const plusIconSize = 15; // Icon is 15x15
+    class UserPriceLineDataBase {
+        _y = 0;
+        _data;
+        constructor(data) {
+            this._data = data;
+        }
+        update(data, series) {
+            this._data = data;
+            if (!this._data.price) {
+                this._y = -10000;
+                return;
+            }
+            this._y = series.priceToCoordinate(this._data.price) ?? -10000;
+        }
+    }
+    class UserPriceLinesPaneRenderer {
+        _data;
+        constructor(data) {
+            this._data = data;
+        }
+        draw(target) {
+            if (!this._data.visible)
+                return;
+            target.useBitmapCoordinateSpace(scope => {
+                const ctx = scope.context;
+                const height = LABEL_HEIGHT;
+                const width = height + 1;
+                const xPos = positionsBox(this._data.rightX - width, this._data.rightX - 1, scope.horizontalPixelRatio);
+                const yPos = positionsLine(this._data.y, scope.verticalPixelRatio, height);
+                ctx.fillStyle = this._data.color;
+                const roundedArray = [5, 0, 0, 5].map(i => i * scope.horizontalPixelRatio);
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(xPos.position, yPos.position, xPos.length, yPos.length, roundedArray);
+                }
+                else {
+                    ctx.fillRect(xPos.position, yPos.position, xPos.length, yPos.length);
+                }
+                ctx.fill();
+                if (this._data.hovered) {
+                    ctx.fillStyle = this._data.hoverColor;
+                    ctx.beginPath();
+                    if (ctx.roundRect) {
+                        ctx.roundRect(xPos.position, yPos.position, xPos.length, yPos.length, roundedArray);
+                    }
+                    else {
+                        ctx.fillRect(xPos.position, yPos.position, xPos.length, yPos.length);
+                    }
+                    ctx.fill();
+                }
+                ctx.translate(xPos.position + 3 * scope.horizontalPixelRatio, yPos.position + 3 * scope.verticalPixelRatio);
+                ctx.scale(scope.horizontalPixelRatio, scope.verticalPixelRatio);
+                const iconScaling = 15 / plusIconSize;
+                ctx.scale(iconScaling, iconScaling);
+                ctx.strokeStyle = this._data.textColor;
+                ctx.lineWidth = 1;
+                ctx.stroke(plusIconPath);
+            });
+        }
+    }
+    class UserPriceLinesPaneView extends UserPriceLineDataBase {
+        renderer() {
+            const color = this._data.crosshairColor;
+            return new UserPriceLinesPaneRenderer({
+                visible: this._data.visible,
+                y: this._y,
+                color,
+                textColor: this._data.crosshairLabelColor,
+                rightX: this._data.timeScaleWidth,
+                hoverColor: this._data.hoverColor,
+                hovered: this._data.hovered ?? false,
+            });
+        }
+        zOrder() {
+            return 'top';
+        }
+    }
+    class UserPriceLinesLabelButton extends PluginBase {
+        _paneViews;
+        _data = {
+            visible: false,
+            hovered: false,
+            timeScaleWidth: 0,
+            crosshairLabelColor: '#000000',
+            crosshairColor: '#ffffff',
+            lineColor: '#000000',
+            hoverColor: '#777777',
+        };
+        _source;
+        constructor(source) {
+            super();
+            this._paneViews = [new UserPriceLinesPaneView(this._data)];
+            this._source = source;
+        }
+        updateAllViews() {
+            this._paneViews.forEach(pw => pw.update(this._data, this.series));
+        }
+        priceAxisViews() {
+            return [];
+        }
+        paneViews() {
+            return this._paneViews;
+        }
+        showAddLabel(price, hovered) {
+            const crosshairColor = this.chart.options().crosshair.horzLine.labelBackgroundColor;
+            this._data = {
+                visible: true,
+                price,
+                hovered,
+                timeScaleWidth: this.chart.timeScale().width(),
+                crosshairColor,
+                crosshairLabelColor: '#FFFFFF',
+                lineColor: this._source.currentLineColor(),
+                hoverColor: this._source.currentHoverColor(),
+            };
+            this.updateAllViews();
+            this.requestUpdate();
+        }
+        hideAddLabel() {
+            this._data.visible = false;
+            this.updateAllViews();
+            this.requestUpdate();
+        }
+    }
+    const defaultOptions = {
+        color: '#000000',
+        hoverColor: '#777777',
+        limitToOne: true,
+    };
+    class UserPriceLines {
+        _chart;
+        _series;
+        _options;
+        _labelButtonPrimitive;
+        markers;
+        constructor(chart, series, options) {
+            this._chart = chart;
+            this._series = series;
+            this._options = {
+                ...defaultOptions,
+                ...options,
+            };
+            this._chart.subscribeClick(this._clickHandler);
+            this._chart.subscribeCrosshairMove(this._moveHandler);
+            this._labelButtonPrimitive = new UserPriceLinesLabelButton(this);
+            series.attachPrimitive(this._labelButtonPrimitive);
+            this._setCrosshairMode();
+            this.markers = new ExpiringMarkers(this._series, { interval: 60 });
+        }
+        currentLineColor() {
+            return this._options.color;
+        }
+        currentHoverColor() {
+            return this._options.hoverColor;
+        }
+        // We need to disable magnet mode for this to work nicely
+        _setCrosshairMode() {
+            if (!this._chart) {
+                throw new Error('Unable to change crosshair mode because the chart instance is undefined');
+            }
+            this._chart.applyOptions({
+                crosshair: {
+                    mode: lightweightCharts.CrosshairMode.Normal,
+                },
+            });
+        }
+        _clickHandler = (param) => this._onClick(param);
+        _moveHandler = (param) => this._onMouseMove(param);
+        remove() {
+            if (this._chart) {
+                this._chart.unsubscribeClick(this._clickHandler);
+                this._chart.unsubscribeCrosshairMove(this._moveHandler);
+            }
+            if (this._series && this._labelButtonPrimitive) {
+                this._series.detachPrimitive(this._labelButtonPrimitive);
+            }
+            this._chart = undefined;
+            this._series = undefined;
+        }
+        _onClick(param) {
+            const price = this._getMousePrice(param);
+            const xDistance = this._distanceFromRightScale(param);
+            if (price === null ||
+                xDistance === null ||
+                xDistance > LABEL_HEIGHT ||
+                !this._series)
+                return;
+            const data = this._series.data();
+            this.markers.addMarker(price, data[data.length - 1].time, data[data.length - 1].time + 19800 * 100, {
+                crossingDirection: 'down',
+                title: '$19.50'
+            });
+        }
+        _onMouseMove(param) {
+            const price = this._getMousePrice(param);
+            const xDistance = this._distanceFromRightScale(param);
+            if (price === null || xDistance === null || xDistance > LABEL_HEIGHT * 2) {
+                this._labelButtonPrimitive.hideAddLabel();
+                return;
+            }
+            this._labelButtonPrimitive.showAddLabel(price, xDistance < LABEL_HEIGHT);
+        }
+        _getMousePrice(param) {
+            if (!param.point || !this._series)
+                return null;
+            const price = this._series.coordinateToPrice(param.point.y);
+            return price;
+        }
+        _distanceFromRightScale(param) {
+            if (!param.point || !this._chart)
+                return null;
+            const timeScaleWidth = this._chart.timeScale().width();
+            return Math.abs(timeScaleWidth - param.point.x);
+        }
+    }
+
     globalParamInit();
     class Handler {
         id;
@@ -3553,7 +4354,7 @@ var Lib = (function (exports, lightweightCharts) {
         toolBox;
         spinner;
         alerts = [];
-        _seriesList = [];
+        _seriesMap = {};
         // TODO find a better solution rather than the 'position' parameter
         constructor(chartId, innerWidth, innerHeight, position, autoSize) {
             this.reSize = this.reSize.bind(this);
@@ -3574,7 +4375,6 @@ var Lib = (function (exports, lightweightCharts) {
             this.wrapper.appendChild(this.indicator_div);
             this.indicator_div.style.display = "none";
             this.indicator_chart = this.createIndicator();
-            // Handler.syncParentIndicatorChart(this.indicator_div, this, false);
             this.chart = this._createChart();
             this.series = this.createCandlestickSeries();
             this.candlestickSeries = this.series; // alias
@@ -3680,7 +4480,7 @@ var Lib = (function (exports, lightweightCharts) {
         }
         createLineSeries(name, options) {
             const line = this.chart.addLineSeries({ ...options });
-            this._seriesList.push(line);
+            this._seriesMap[name] = line;
             this.legend.makeSeriesRow(name, line);
             return {
                 name: name,
@@ -3689,7 +4489,7 @@ var Lib = (function (exports, lightweightCharts) {
         }
         createHistogramSeries(name, options) {
             const line = this.chart.addHistogramSeries({ ...options });
-            this._seriesList.push(line);
+            this._seriesMap[name] = line;
             this.legend.makeSeriesRow(name, line);
             return {
                 name: name,
@@ -3793,6 +4593,47 @@ var Lib = (function (exports, lightweightCharts) {
                 });
             }
         }
+        // NOTE: This does not work as intended. This creates a div at the top of the wrapper
+        //       And the resize also does not work as expected.
+        enableIndicatorResize() {
+            const resizeHandle = document.createElement('div');
+            this.wrapper.appendChild(resizeHandle);
+            resizeHandle.style.width = '100%';
+            resizeHandle.style.height = '5px';
+            resizeHandle.style.cursor = 'row-resize';
+            resizeHandle.style.position = 'relative';
+            resizeHandle.style.top = `${this.indicator_div.offsetTop}px`;
+            resizeHandle.style.background = 'rgba(255, 255, 255, 0.1)';
+            resizeHandle.style.zIndex = '100';
+            const candlestickChartDiv = this.div;
+            const indicatorChartDiv = this.indicator_div;
+            const scale = this.scale;
+            let isResizing = false;
+            const onMouseMove = (event) => {
+                if (!isResizing)
+                    return;
+                // Calculate new heights based on mouse position
+                const totalHeight = candlestickChartDiv.offsetHeight + indicatorChartDiv.offsetHeight;
+                const indicatorHeight = Math.min(Math.max(20, totalHeight - event.clientY), totalHeight - 50 // Minimum height for the candlestick chart
+                );
+                const candlestickHeight = totalHeight - indicatorHeight;
+                // Update proportional heights
+                scale.height = (indicatorHeight / window.innerHeight) * 100;
+                // Update chart dimensions
+                candlestickChartDiv.style.height = `${candlestickHeight}px`;
+                indicatorChartDiv.style.height = `${indicatorHeight}px`;
+            };
+            const onMouseUp = () => {
+                isResizing = false;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            resizeHandle.addEventListener('mousedown', (event) => {
+                isResizing = true;
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
         addIndicator(name, options) {
             // TODO: remove line if preesnt with same name
             const line = this.indicator_chart.addLineSeries({ ...options });
@@ -3830,6 +4671,10 @@ var Lib = (function (exports, lightweightCharts) {
                 console.log(`❌ Alert removed with the id: ${id}`);
             });
             this.alerts.push(alert);
+        }
+        ;
+        createUserPriceLine() {
+            new UserPriceLines(this.chart, this.series, { color: 'hotpink' });
         }
         ;
         createDeltaToolTip() {

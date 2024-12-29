@@ -18,12 +18,17 @@ export interface MarkersParameters {
 	crossingDirection: 'up' | 'down';
 }
 
+export interface MarkersPosition {
+	x: number;
+	y: number;
+}
 
 export interface MarkersAlert {
 	price: number;
 	start: number;
 	end: number;
   parameters: MarkersParameters;
+  moving: boolean;
 	crossed: boolean;
 	expired: boolean;
 }
