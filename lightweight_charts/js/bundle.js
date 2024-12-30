@@ -49,6 +49,7 @@ var Lib = (function (exports, lightweightCharts) {
         text;
         candle;
         _lines = [];
+        info = {};
         constructor(handler) {
             this.legendHandler = this.legendHandler.bind(this);
             this.handler = handler;
@@ -75,6 +76,9 @@ var Lib = (function (exports, lightweightCharts) {
             handler.div.appendChild(this.div);
             // this.makeSeriesRows(handler);
             handler.chart.subscribeCrosshairMove(this.legendHandler);
+        }
+        setInfo(info) {
+            this.info = Object.assign(this.info, info);
         }
         toJSON() {
             // Exclude the chart attribute from serialization
@@ -136,7 +140,9 @@ var Lib = (function (exports, lightweightCharts) {
                 solid: color.startsWith('rgba') ? color.replace(/[^,]+(?=\))/, '1') : color
             });
         }
-        legendItemFormat(num, decimal) { return num.toFixed(decimal).toString().padStart(8, ' '); }
+        legendItemFormat(num, decimal) {
+            return num.toFixed(decimal).toString().padStart(8, ' ');
+        }
         shorthandFormat(num) {
             const absNum = Math.abs(num);
             if (absNum >= 1000000) {
@@ -183,6 +189,13 @@ var Lib = (function (exports, lightweightCharts) {
             }
             this.candle.style.color = '';
             let str = '<span style="line-height: 1.8;">';
+            if (Object.keys(this.info).length > 0) {
+                let fragments = [];
+                for (const [k, v] of Object.entries(this.info)) {
+                    fragments.push(`${k}: ${v}`);
+                }
+                str += fragments.join(" | ") + "</br>";
+            }
             if (data) {
                 if (this.ohlcEnabled) {
                     str += `O ${this.legendItemFormat(data.open, this.handler.precision)} `;
@@ -3742,66 +3755,12 @@ var Lib = (function (exports, lightweightCharts) {
         _source;
         _views;
         _states;
-        // private _clickHandler = (param: MouseEventParams) => this._onClick(param);
-        // private _moveHandler = (param: MouseEventParams) => this._onMouseMove(param);
         constructor(source) {
             super();
             this._source = source;
             this._views = [new MarkersPaneView(this._source)];
             this._states = [];
         }
-        // private _onClick(param: MouseEventParams) {
-        // 	const price = this._getMousePrice(param);
-        // 	const xDistance = this._distanceFromRightScale(param);
-        // 	console.log("price line on click", price, xDistance);
-        // 	if (
-        // 		price === null ||
-        // 		xDistance === null ||
-        // 		xDistance > LABEL_HEIGHT ||
-        // 		!this._series
-        // 	)
-        // 		return;
-        // 	const data = this._series.data();
-        // 	this.markers.addMarker(
-        // 		price,
-        // 		data[data.length - 1].time as number,
-        // 		data[data.length - 1].time as number + 19800 * 100,
-        // 		{
-        // 			crossingDirection: 'down',
-        // 			title: '$19.50'
-        // 		}
-        // 	);
-        // }
-        // private _onMouseMove(param: MouseEventParams) {
-        // 	const price = this._getMousePrice(param);
-        // 	const xDistance = this._distanceFromRightScale(param);
-        // 	if (price === null || xDistance === null || xDistance > LABEL_HEIGHT * 2) {
-        // 		this._labelButtonPrimitive.hideAddLabel();
-        // 		return;
-        // 	}
-        // 	this._labelButtonPrimitive.showAddLabel(price, xDistance < LABEL_HEIGHT);
-        // }
-        // private _getMousePrice(param: MouseEventParams) {
-        // 	if (!param.point || !this._series) return null;
-        // 	const price = this._series.coordinateToPrice(param.point.y);
-        // 	return price;
-        // }
-        // private _distanceFromRightScale(param: MouseEventParams) {
-        // 	if (!param.point || !this._chart) return null;
-        // 	const timeScaleWidth = this._chart.timeScale().width();
-        // 	return Math.abs(timeScaleWidth - param.point.x);
-        // }
-        // remove() {
-        // 	if (this._chart) {
-        // 		this._chart.unsubscribeClick(this._clickHandler);
-        // 		this._chart.unsubscribeCrosshairMove(this._moveHandler);
-        // 	}
-        // 	if (this._series && this._labelButtonPrimitive) {
-        // 		this._series.detachPrimitive(this._labelButtonPrimitive);
-        // 	}
-        // 	this._chart = undefined;
-        // 	this._series = undefined;
-        // }
         requestUpdate() {
             super.requestUpdate();
         }
@@ -3834,6 +3793,10 @@ var Lib = (function (exports, lightweightCharts) {
     /**
      * This Plugin will work best with a chart which has a linear time scale.
      */
+    function snaptofive(price) {
+        let x = price * 100;
+        return (x - x % 5) / 100;
+    }
     function hasValue(data) {
         return data.value !== undefined;
     }
@@ -3863,9 +3826,6 @@ var Lib = (function (exports, lightweightCharts) {
             const currentLastPoint = this._series.dataByIndex(10000, lightweightCharts.MismatchDirection.NearestLeft);
             this._chart = this._primitive.chart;
             this._whitespaceSeries = this._chart.addLineSeries();
-            // document.addEventListener('mousedown', this._onMouseDown.bind(this));
-            // document.addEventListener('mousemove', this._onMouseMove.bind(this));
-            // document.addEventListener('mouseup', this._onMouseUp.bind(this));
             this._chart.subscribeClick(this._clickHandler);
             this._chart.subscribeCrosshairMove(this._moveHandler);
             if (currentLastPoint)
@@ -3893,7 +3853,7 @@ var Lib = (function (exports, lightweightCharts) {
                 id = (Math.random() * 100000).toFixed();
             }
             this._alerts.set(id, {
-                price,
+                price: snaptofive(price),
                 start: startDate,
                 end: endDate,
                 parameters,
@@ -4051,7 +4011,7 @@ var Lib = (function (exports, lightweightCharts) {
                     if (!price)
                         return;
                     this._alerts.set(id, {
-                        price,
+                        price: snaptofive(price),
                         start: alert.start,
                         end: alert.end,
                         parameters: alert.parameters,
@@ -4090,7 +4050,7 @@ var Lib = (function (exports, lightweightCharts) {
             if (!id || !price || !alert)
                 return;
             this._alerts.set(id, {
-                price,
+                price: snaptofive(price),
                 start: alert.start,
                 end: alert.end,
                 parameters: alert.parameters,

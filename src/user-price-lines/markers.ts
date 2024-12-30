@@ -24,6 +24,11 @@ import { MarkersPrimitive } from './marker-primitive';
  * This Plugin will work best with a chart which has a linear time scale.
  */
 
+function snaptofive (price: number): number {
+    let x = price * 100;
+    return (x - x % 5) / 100;
+}
+
 function hasValue(data: LineData | WhitespaceData): data is LineData {
 	return (data as LineData).value !== undefined;
 }
@@ -65,9 +70,6 @@ export class ExpiringMarkers implements IMarkers {
 
 		this._chart = this._primitive.chart;
 		this._whitespaceSeries = this._chart.addLineSeries();
-    // document.addEventListener('mousedown', this._onMouseDown.bind(this));
-    // document.addEventListener('mousemove', this._onMouseMove.bind(this));
-    // document.addEventListener('mouseup', this._onMouseUp.bind(this));
     this._chart.subscribeClick(this._clickHandler);
     this._chart.subscribeCrosshairMove(this._moveHandler);
 
@@ -104,7 +106,7 @@ export class ExpiringMarkers implements IMarkers {
 			id = (Math.random() * 100000).toFixed();
 		}
 		this._alerts.set(id, {
-			price,
+			price: snaptofive(price),
 			start: startDate,
 			end: endDate,
 			parameters,
@@ -268,13 +270,12 @@ export class ExpiringMarkers implements IMarkers {
       return;
     }
 
-
     for (const [id, alert] of this._alerts.entries()){
       if (alert.moving){
         const price = this._getMousePrice(param);
         if (!price) return;
         this._alerts.set(id, {
-          price,
+          price: snaptofive(price),
           start: alert.start,
           end: alert.end,
           parameters: alert.parameters,
@@ -316,7 +317,7 @@ export class ExpiringMarkers implements IMarkers {
     }
     if (!id || !price || !alert) return;
     this._alerts.set(id, {
-      price,
+      price: snaptofive(price),
       start: alert.start,
       end: alert.end,
       parameters: alert.parameters,

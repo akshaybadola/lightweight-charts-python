@@ -933,6 +933,9 @@ class Container(Pane):
         {l_id}.text.innerText = '{text}'
         ''')
 
+    def set_legend_info(self, info):
+        self.run_script(f'{self.id}.legend.setInfo({info})')
+
     def spinner(self, visible):
         self.run_script(f"{self.id}.spinner.style.display = '{'block' if visible else 'none'}'")
 
