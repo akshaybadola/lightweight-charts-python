@@ -6,245 +6,296 @@ import { CheckboxMenu } from "./checkboxmenu";
 declare const window: GlobalParams
 
 interface Widget {
-    elem: HTMLDivElement;
-    callbackName: string;
-    intervalElements: HTMLButtonElement[];
-    onItemClicked: Function;
+  elem: HTMLDivElement;
+  callbackName: string;
+  intervalElements: HTMLButtonElement[];
+  onItemClicked: Function;
 }
 
 export class TopBar {
-    private _handler: Handler;
-    public _div: HTMLDivElement;
+  private _handler: Handler;
+  public _div: HTMLDivElement;
 
-    private left: HTMLDivElement;
-    private right: HTMLDivElement;
+  private left: HTMLDivElement;
+  private right: HTMLDivElement;
 
-    constructor(handler: Handler) {
-        this._handler = handler;
+  constructor(handler: Handler) {
+    this._handler = handler;
 
-        this._div = document.createElement('div');
-        this._div.classList.add('topbar');
+    this._div = document.createElement('div');
+    this._div.classList.add('topbar');
 
-        const createTopBarContainer = (justification: string) => {
-            const div = document.createElement('div')
-            div.classList.add('topbar-container')
-            div.style.justifyContent = justification
-            this._div.appendChild(div)
-            return div
+    const createTopBarContainer = (justification: string) => {
+      const div = document.createElement('div')
+      div.classList.add('topbar-container')
+      div.style.justifyContent = justification
+      this._div.appendChild(div)
+      return div
+    }
+    this.left = createTopBarContainer('flex-start')
+    this.right = createTopBarContainer('flex-end')
+  }
+
+  private timeToMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  private minutesToTime(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  }
+
+  makeSwitcher(items: string[], defaultItem: string, callbackName: string, align = 'left') {
+    const switcherElement = document.createElement('div');
+    switcherElement.style.margin = '4px 12px'
+
+    let activeItemEl: HTMLButtonElement;
+
+    const createAndReturnSwitcherButton = (itemName: string) => {
+      const button = document.createElement('button');
+      button.classList.add('topbar-button');
+      button.classList.add('switcher-button');
+      button.style.margin = '0px 2px';
+      button.innerText = itemName;
+
+      if (itemName == defaultItem) {
+        activeItemEl = button;
+        button.classList.add('active-switcher-button');
+      }
+
+      const buttonWidth = TopBar.getClientWidth(button)
+      button.style.minWidth = buttonWidth + 1 + 'px'
+      button.addEventListener('click', () => widget.onItemClicked(button))
+
+      switcherElement.appendChild(button);
+      return button;
+    }
+
+    const widget: Widget = {
+      elem: switcherElement,
+      callbackName: callbackName,
+      intervalElements: items.map(createAndReturnSwitcherButton),
+      onItemClicked: (item: HTMLButtonElement) => {
+        if (item == activeItemEl) return
+        activeItemEl.classList.remove('active-switcher-button');
+        item.classList.add('active-switcher-button');
+        activeItemEl = item;
+        window.callbackFunction(`${widget.callbackName}_~_${item.innerText}`);
+      }
+    }
+
+    this.appendWidget(switcherElement, align, true)
+    return widget
+  }
+
+  makeTextBoxWidget(text: string, align = 'left', callbackName = null) {
+    if (callbackName) {
+      const textBox = document.createElement('input');
+      textBox.classList.add('topbar-textbox-input');
+      textBox.value = text
+      textBox.style.width = `${(textBox.value.length + 2)}ch`
+      textBox.addEventListener('focus', () => {
+        window.textBoxFocused = true;
+      })
+      textBox.addEventListener('input', (e) => {
+        e.preventDefault();
+        textBox.style.width = `${(textBox.value.length + 2)}ch`;
+      });
+      textBox.addEventListener('keydown', (e) => {
+        if (e.key == 'Enter') {
+          e.preventDefault();
+          textBox.blur();
         }
-        this.left = createTopBarContainer('flex-start')
-        this.right = createTopBarContainer('flex-end')
+      });
+      textBox.addEventListener('blur', () => {
+        window.callbackFunction(`${callbackName}_~_${textBox.value}`)
+        window.textBoxFocused = false;
+      });
+      this.appendWidget(textBox, align, true)
+      return textBox
+    } else {
+      const textBox = document.createElement('div');
+      textBox.classList.add('topbar-textbox');
+      textBox.innerText = text
+      this.appendWidget(textBox, align, true)
+      return textBox
+    }
+  }
+
+  makeMenu(items: string[], activeItem: string, separator: boolean,
+    callbackName: string, align: 'right' | 'left') {
+    return new Menu(this.makeButton.bind(this), callbackName, items, activeItem, separator, align)
+  }
+
+  makeCheckboxMenu(name: string, items: string[], separator: boolean,
+    callbackName: string, align: 'right' | 'left') {
+    console.log("Checkbox menu handler", this._handler);
+    return new CheckboxMenu(this.makeButton.bind(this), callbackName, name, items, separator, align,
+      this._handler.id)
+  }
+
+  makeButton(defaultText: string, callbackName: string | null, separator: boolean,
+    append = true, align = 'left', toggle = false) {
+    let button = document.createElement('button')
+    button.classList.add('topbar-button');
+    // button.style.color = window.pane.color
+    button.innerText = defaultText;
+    document.body.appendChild(button)
+    button.style.minWidth = button.clientWidth + 1 + 'px'
+    document.body.removeChild(button)
+
+    let widget = {
+      elem: button,
+      callbackName: callbackName
     }
 
-    private timeToMinutes(time: string): number {
-        const [hours, minutes] = time.split(':').map(Number);
-        return hours * 60 + minutes;
-    }
-
-    private minutesToTime(minutes: number): string {
-        const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-    }
-
-    makeSwitcher(items: string[], defaultItem: string, callbackName: string, align='left') {
-        const switcherElement = document.createElement('div');
-        switcherElement.style.margin = '4px 12px'
-
-        let activeItemEl: HTMLButtonElement;
-
-        const createAndReturnSwitcherButton = (itemName: string) => {
-            const button = document.createElement('button');
-            button.classList.add('topbar-button');
-            button.classList.add('switcher-button');
-            button.style.margin = '0px 2px';
-            button.innerText = itemName;
-
-            if (itemName == defaultItem) {
-                activeItemEl = button;
-                button.classList.add('active-switcher-button');
-            }
-
-            const buttonWidth = TopBar.getClientWidth(button)
-            button.style.minWidth = buttonWidth + 1 + 'px'
-            button.addEventListener('click', () => widget.onItemClicked(button))
-
-            switcherElement.appendChild(button);
-            return button;
+    if (callbackName) {
+      let handler;
+      if (toggle) {
+        let state = false;
+        handler = () => {
+          state = !state
+          window.callbackFunction(`${widget.callbackName}_~_${state}`)
+          button.style.backgroundColor = state ? 'var(--active-bg-color)' : '';
+          button.style.color = state ? 'var(--active-color)' : '';
         }
+      } else {
+        handler = () => window.callbackFunction(`${widget.callbackName}_~_${button.innerText}`)
+      }
+      button.addEventListener('click', handler);
+    }
+    if (append) this.appendWidget(button, align, separator)
+    return widget
+  }
 
-        const widget: Widget = {
-            elem: switcherElement,
-            callbackName: callbackName,
-            intervalElements: items.map(createAndReturnSwitcherButton),
-            onItemClicked: (item: HTMLButtonElement) => {
-                if (item == activeItemEl) return
-                activeItemEl.classList.remove('active-switcher-button');
-                item.classList.add('active-switcher-button');
-                activeItemEl = item;
-                window.callbackFunction(`${widget.callbackName}_~_${item.innerText}`);
-            }
-        }
+  makeSeparator(align = 'left') {
+    const separator = document.createElement('div')
+    separator.classList.add('topbar-seperator')
+    const div = align == 'left' ? this.left : this.right
+    div.appendChild(separator)
+  }
 
-        this.appendWidget(switcherElement, align, true)
-        return widget
+  makeTimeSlider(
+    minTime: string,
+    maxTime: string,
+    stepMinutes: number,
+    initialValue: string,
+    callbackName: string,
+    debounceDelay: number = 500,
+    align: string = 'left') {
+    const sliderContainer = document.createElement('div');
+    sliderContainer.classList.add('topbar-slider-container');
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = this.timeToMinutes(minTime).toString();
+    slider.max = this.timeToMinutes(maxTime).toString();
+    slider.step = stepMinutes.toString();
+    slider.value = this.timeToMinutes(initialValue).toString();
+    slider.classList.add('topbar-slider');
+
+    const display = document.createElement('span');
+    display.classList.add('topbar-slider-display');
+    display.innerText = initialValue;
+
+    sliderContainer.appendChild(display);
+    sliderContainer.appendChild(slider);
+
+    let debounceTimeout: number | undefined;
+
+    const handleSliderChange = (e) => {
+      const minutes = parseInt(slider.value, 10);
+      const time = this.minutesToTime(minutes);
+      display.innerText = time;
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+      debounceTimeout = window.setTimeout(() => {
+        window.callbackFunction(`${widget.callbackName}_~_${time}`);
+      }, debounceDelay);
+    };
+
+    let widget = {
+      elem: sliderContainer,
+      callbackName: callbackName
     }
 
-    makeTextBoxWidget(text: string, align='left', callbackName=null) {
-        if (callbackName) {
-            const textBox = document.createElement('input');
-            textBox.classList.add('topbar-textbox-input');
-            textBox.value = text
-            textBox.style.width = `${(textBox.value.length+2)}ch`
-            textBox.addEventListener('focus', () => {
-                window.textBoxFocused = true;
-            })
-            textBox.addEventListener('input', (e) => {
-                e.preventDefault();
-                textBox.style.width = `${(textBox.value.length+2)}ch`;
-            });
-            textBox.addEventListener('keydown', (e) => {
-                if (e.key == 'Enter') {
-                    e.preventDefault();
-                    textBox.blur();
-                }
-            });
-            textBox.addEventListener('blur', () => {
-                window.callbackFunction(`${callbackName}_~_${textBox.value}`)
-                window.textBoxFocused = false;
-            });
-            this.appendWidget(textBox, align, true)
-            return textBox
-        } else {
-            const textBox = document.createElement('div');
-            textBox.classList.add('topbar-textbox');
-            textBox.innerText = text
-            this.appendWidget(textBox, align, true)
-            return textBox
-        }
+    slider.addEventListener('input', e => handleSliderChange(e));
+
+    this.appendWidget(sliderContainer, align, false);
+
+    return slider;
+  }
+
+  makeSlider(
+    minVal: number,
+    maxVal: number,
+    step: number,
+    initialValue: number,
+    callbackName: string,
+    debounceDelay: number = 500,
+    align: string = 'left') {
+    const sliderContainer = document.createElement('div');
+    sliderContainer.classList.add('topbar-slider-container');
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = minVal.toString();
+    slider.max = maxVal.toString()
+    slider.step = step.toString();
+    slider.value = initialValue.toString();
+    slider.classList.add('topbar-slider');
+
+    const display = document.createElement('span');
+    display.classList.add('topbar-slider-display');
+    display.innerText = initialValue.toString();
+
+    sliderContainer.appendChild(display);
+    sliderContainer.appendChild(slider);
+
+    let debounceTimeout: number | undefined;
+
+    const handleSliderChange = (e) => {
+      const val = slider.value;
+      display.innerText = val;
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+      debounceTimeout = window.setTimeout(() => {
+        window.callbackFunction(`${widget.callbackName}_~_${val}`);
+      }, debounceDelay);
+    };
+
+    let widget = {
+      elem: sliderContainer,
+      callbackName: callbackName
     }
 
-    makeMenu(items: string[], activeItem: string, separator: boolean,
-             callbackName: string, align: 'right'|'left') {
-        return new Menu(this.makeButton.bind(this), callbackName, items, activeItem, separator, align)
-    }
+    slider.addEventListener('input', e => handleSliderChange(e));
 
-    makeCheckboxMenu(name: string, items: string[], separator: boolean,
-                     callbackName: string, align: 'right'|'left') {
-        console.log("Checkbox menu handler", this._handler);
-        return new CheckboxMenu(this.makeButton.bind(this), callbackName, name, items, separator, align,
-                                this._handler.id)
-    }
+    this.appendWidget(sliderContainer, align, false);
 
-    makeButton(defaultText: string, callbackName: string | null, separator: boolean,
-               append=true, align='left', toggle=false) {
-        let button = document.createElement('button')
-        button.classList.add('topbar-button');
-        // button.style.color = window.pane.color
-        button.innerText = defaultText;
-        document.body.appendChild(button)
-        button.style.minWidth = button.clientWidth+1+'px'
-        document.body.removeChild(button)
+    return slider;
+  }
 
-        let widget = {
-            elem: button,
-            callbackName: callbackName
-        }
+  appendWidget(widget: HTMLElement, align: string, separator: boolean) {
+    const div = align == 'left' ? this.left : this.right
+    if (separator) {
+      if (align == 'left') div.appendChild(widget)
+      this.makeSeparator(align)
+      if (align == 'right') div.appendChild(widget)
+    } else div.appendChild(widget)
+    this._handler.reSize();
+  }
 
-        if (callbackName) {
-            let handler;
-            if (toggle) {
-                let state = false;
-                handler = () => {
-                    state = !state
-                    window.callbackFunction(`${widget.callbackName}_~_${state}`)
-                    button.style.backgroundColor = state ? 'var(--active-bg-color)' : '';
-                    button.style.color = state ? 'var(--active-color)' : '';
-                }
-            } else {
-                handler = () => window.callbackFunction(`${widget.callbackName}_~_${button.innerText}`)
-            }
-            button.addEventListener('click', handler);
-        }
-        if (append) this.appendWidget(button, align, separator)
-        return widget
-    }
-
-    makeSeparator(align='left') {
-        const separator = document.createElement('div')
-        separator.classList.add('topbar-seperator')
-        const div = align == 'left' ? this.left : this.right
-        div.appendChild(separator)
-    }
-
-    makeSlider(
-        minTime: string,
-        maxTime: string,
-        stepMinutes: number,
-        initialValue: string,
-        callbackName: string,
-        debounceDelay: number = 500,
-        align: string = 'left') {
-        const sliderContainer = document.createElement('div');
-        sliderContainer.classList.add('topbar-slider-container');
-
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.min = this.timeToMinutes(minTime).toString();
-        slider.max = this.timeToMinutes(maxTime).toString();
-        slider.step = stepMinutes.toString();
-        slider.value = this.timeToMinutes(initialValue).toString();
-        slider.classList.add('topbar-slider');
-
-        const display = document.createElement('span');
-        display.classList.add('topbar-slider-display');
-        display.innerText = initialValue;
-
-        sliderContainer.appendChild(display);
-        sliderContainer.appendChild(slider);
-
-        let debounceTimeout: number | undefined;
-
-        const handleSliderChange = (e) => {
-            const minutes = parseInt(slider.value, 10);
-            const time = this.minutesToTime(minutes);
-            display.innerText = time;
-            if (debounceTimeout) {
-                clearTimeout(debounceTimeout);
-            }
-            debounceTimeout = window.setTimeout(() => {
-                window.callbackFunction(`${widget.callbackName}_~_${time}`);
-            }, debounceDelay);
-        };
-
-        let widget = {
-            elem: sliderContainer,
-            callbackName: callbackName
-        }
-
-        slider.addEventListener('input', e => handleSliderChange(e));
-
-        this.appendWidget(sliderContainer, align, false);
-
-        return slider;
-    }
-
-    appendWidget(widget: HTMLElement, align: string, separator: boolean) {
-        const div = align == 'left' ? this.left : this.right
-        if (separator) {
-            if (align == 'left') div.appendChild(widget)
-            this.makeSeparator(align)
-            if (align == 'right') div.appendChild(widget)
-        } else div.appendChild(widget)
-        this._handler.reSize();
-    }
-
-    private static getClientWidth(element: HTMLElement) {
-        document.body.appendChild(element);
-        const width = element.clientWidth;
-        document.body.removeChild(element);
-        return width;
-    }
+  private static getClientWidth(element: HTMLElement) {
+    document.body.appendChild(element);
+    const width = element.clientWidth;
+    document.body.removeChild(element);
+    return width;
+  }
 }
 
 

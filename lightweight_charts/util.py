@@ -7,6 +7,12 @@ from numpy import isin
 import pandas as pd
 
 
+# This only contains id generation and script running
+# Any UI component extends Pane for some reason
+# Apparently all it does it provide
+# 1. id
+# 2. run_script
+# 3. bulk_run
 class Pane:
     def __init__(self, window):
         from lightweight_charts import Window
@@ -18,6 +24,7 @@ class Pane:
         self.id = Window._id_gen.generate()
 
 
+# This is only used by abstract.Window
 class IDGen(list):
     ascii = 'abcdefghijklmnopqrstuvwxyz'
 

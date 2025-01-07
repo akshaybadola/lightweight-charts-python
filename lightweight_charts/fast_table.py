@@ -2,6 +2,7 @@ import asyncio
 import random
 from typing import Union, Optional, Callable, Any
 from threading import Lock
+import json
 
 import numpy as np
 import pandas as pd
@@ -34,20 +35,23 @@ class FastTable(Pane):
             func: Optional[Callable] = None,
             table_id: Optional[str] = None
     ):
-        Pane.__init__(self, window)
+        # Pane.__init__(self, window)
+        super().__init__(window)
         self._formatters = {}
         self.headings = headings
         self.is_shown = True
 
-        def wrapper(rId, cId=None):
+        def wrapper(rId, cId=None, json_data=None):
+            json_data = json_data and json.loads(json_data)
             if return_clicked_cells:
-                func(self[int(rId)], cId)
+                func(self[int(rId)], cId, **json_data)
             else:
                 func(self[int(rId)])
 
-        async def async_wrapper(rId, cId=None):
+        async def async_wrapper(rId, cId=None, json_data=None):
+            json_data = json_data and json.loads(json_data)
             if return_clicked_cells:
-                await func(self[int(rId)], cId)
+                await func(self[int(rId)], cId, **json_data)
             else:
                 await func(self[int(rId)])
 

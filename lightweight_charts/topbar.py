@@ -71,9 +71,10 @@ class MenuWidget(Widget):
         ''')
         # self.win.handlers[self.id](option)
 
-    def update_items(self, *items: str):
-        self.options = list(items)
-        self.run_script(f'{self.id}.updateMenuItems({self.options})')
+    def update_items(self, items: list[str], default=None):
+        default = default or items[0]
+        self.options = items
+        self.run_script(f'{self.id}.updateMenuItems({self.options}, "{default}")')
 
 
 class CheckboxMenuWidget(Widget):
@@ -94,9 +95,10 @@ class CheckboxMenuWidget(Widget):
         ''')
         # self.win.handlers[self.id](option)
 
-    def update_items(self, *items: str):
-        self.options = list(items)
-        self.run_script(f'{self.id}.updateMenuItems({self.options})')
+    def update_items(self, items: list[str], default=None):
+        default = default or items[0]
+        self.options = items
+        self.run_script(f'{self.id}.updateMenuItems({self.options}, "{default}")')
 
 
 class ButtonWidget(Widget):
@@ -116,7 +118,7 @@ class ButtonWidget(Widget):
         self.run_script(f'{self.id}.elem.innerText = "{string}"')
 
 
-class SliderWidget(Widget):
+class TimeSliderWidget(Widget):
     def __init__(self, topbar, min_time: str = "9:00", max_time: str = "15:00",
                  step_minutes: int = 1, initial_value: str = "15:00", debounce_delay: int = 500,
                  align: str = "left", func: Optional[Callable] = None):
@@ -124,6 +126,22 @@ class SliderWidget(Widget):
         params = ", ".join([f'"{min_time}"',
                             f'"{max_time}"',
                             f'{step_minutes}',
+                            f'"{initial_value}"',
+                            f'"{self.id}"',
+                            f'debounce_delay={debounce_delay}',
+                            f'align="{align}"'])
+        script = f'{self.id} = {topbar.id}.makeTimeSlider({params})'
+        self.run_script(script)
+
+
+class SliderWidget(Widget):
+    def __init__(self, topbar, min_val: float = 0, max_val: float = 1,
+                 step: float = .1, initial_value: float = .2, debounce_delay: int = 500,
+                 align: str = "left", func: Optional[Callable] = None):
+        super().__init__(topbar, value=initial_value, func=func, convert_boolean=False)
+        params = ", ".join([f'"{min_val}"',
+                            f'"{max_val}"',
+                            f'{step}',
                             f'"{initial_value}"',
                             f'"{self.id}"',
                             f'debounce_delay={debounce_delay}',
@@ -180,9 +198,16 @@ class TopBar(Pane):
         self._create()
         self._widgets[name] = ButtonWidget(self, button_text, separator, align, toggle, func)
 
-    def slider(self, min_time: str = "9:00", max_time: str = "15:00", step_minutes: int = 1,
-               initial_value: str = "15:00", debounce_delay: int = 500,
+    def time_slider(self, min_time: str = "9:00", max_time: str = "15:00", step_minutes: int = 1,
+                    initial_value: str = "15:00", debounce_delay: int = 500,
+                    align: str = "left", func: Optional[Callable] = None):
+        self._create()
+        self._widgets["slider"] = TimeSliderWidget(self, min_time, max_time, step_minutes,
+                                                   initial_value, debounce_delay, align, func)
+
+    def slider(self, min_val: float = 0, max_val: float = 1,
+               step: float = .1, initial_value: float = .2, debounce_delay: int = 500,
                align: str = "left", func: Optional[Callable] = None):
         self._create()
-        self._widgets["slider"] = SliderWidget(self, min_time, max_time, step_minutes,
+        self._widgets["slider"] = SliderWidget(self, min_val, max_val, step,
                                                initial_value, debounce_delay, align, func)

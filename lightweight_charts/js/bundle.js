@@ -301,7 +301,7 @@ var Lib = (function (exports, lightweightCharts) {
         }
     }
 
-    const defaultOptions$4 = {
+    const defaultOptions$6 = {
         lineColor: '#1E80F0',
         lineStyle: lightweightCharts.LineStyle.Solid,
         width: 4,
@@ -331,7 +331,7 @@ var Lib = (function (exports, lightweightCharts) {
         constructor(options) {
             super();
             this._options = {
-                ...defaultOptions$4,
+                ...defaultOptions$6,
                 ...options,
             };
         }
@@ -891,7 +891,7 @@ var Lib = (function (exports, lightweightCharts) {
             this.points.push(p1);
             this.points.push(p2);
             this._options = {
-                ...defaultOptions$4,
+                ...defaultOptions$6,
                 ...options,
             };
         }
@@ -1028,7 +1028,7 @@ var Lib = (function (exports, lightweightCharts) {
     const defaultBoxOptions = {
         fillEnabled: true,
         fillColor: 'rgba(255, 255, 255, 0.2)',
-        ...defaultOptions$4
+        ...defaultOptions$6
     };
     class Box extends TwoPointDrawing {
         _type = "Box";
@@ -1775,7 +1775,7 @@ var Lib = (function (exports, lightweightCharts) {
             this.div = document.createElement('div');
             this.div.classList.add('topbar-menu');
             this.widget = this.makeButton(activeItem + ' ↓', null, separator, true, align);
-            this.updateMenuItems(items);
+            this.updateMenuItems(items, activeItem);
             this.widget.elem.addEventListener('click', () => {
                 this.isOpen = !this.isOpen;
                 if (!this.isOpen) {
@@ -1791,7 +1791,7 @@ var Lib = (function (exports, lightweightCharts) {
             });
             document.body.appendChild(this.div);
         }
-        updateMenuItems(items) {
+        updateMenuItems(items, activeItem) {
             this.div.innerHTML = '';
             items.forEach(text => {
                 let button = this.makeButton(text, null, false, false);
@@ -1802,7 +1802,7 @@ var Lib = (function (exports, lightweightCharts) {
                 button.elem.style.padding = '2px 2px';
                 this.div.appendChild(button.elem);
             });
-            this.widget.elem.innerText = items[0] + ' ↓';
+            this.widget.elem.innerText = activeItem + ' ↓';
         }
         _clickHandler(name) {
             this.widget.elem.innerText = name + ' ↓';
@@ -2024,7 +2024,7 @@ var Lib = (function (exports, lightweightCharts) {
             const div = align == 'left' ? this.left : this.right;
             div.appendChild(separator);
         }
-        makeSlider(minTime, maxTime, stepMinutes, initialValue, callbackName, debounceDelay = 500, align = 'left') {
+        makeTimeSlider(minTime, maxTime, stepMinutes, initialValue, callbackName, debounceDelay = 500, align = 'left') {
             const sliderContainer = document.createElement('div');
             sliderContainer.classList.add('topbar-slider-container');
             const slider = document.createElement('input');
@@ -2049,6 +2049,40 @@ var Lib = (function (exports, lightweightCharts) {
                 }
                 debounceTimeout = window.setTimeout(() => {
                     window.callbackFunction(`${widget.callbackName}_~_${time}`);
+                }, debounceDelay);
+            };
+            let widget = {
+                elem: sliderContainer,
+                callbackName: callbackName
+            };
+            slider.addEventListener('input', e => handleSliderChange());
+            this.appendWidget(sliderContainer, align, false);
+            return slider;
+        }
+        makeSlider(minVal, maxVal, step, initialValue, callbackName, debounceDelay = 500, align = 'left') {
+            const sliderContainer = document.createElement('div');
+            sliderContainer.classList.add('topbar-slider-container');
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = minVal.toString();
+            slider.max = maxVal.toString();
+            slider.step = step.toString();
+            slider.value = initialValue.toString();
+            slider.classList.add('topbar-slider');
+            const display = document.createElement('span');
+            display.classList.add('topbar-slider-display');
+            display.innerText = initialValue.toString();
+            sliderContainer.appendChild(display);
+            sliderContainer.appendChild(slider);
+            let debounceTimeout;
+            const handleSliderChange = (e) => {
+                const val = slider.value;
+                display.innerText = val;
+                if (debounceTimeout) {
+                    clearTimeout(debounceTimeout);
+                }
+                debounceTimeout = window.setTimeout(() => {
+                    window.callbackFunction(`${widget.callbackName}_~_${val}`);
                 }, debounceDelay);
             };
             let widget = {
@@ -2866,6 +2900,163 @@ var Lib = (function (exports, lightweightCharts) {
         }
     }
 
+    const defaultOptions$5 = {
+        title: '',
+        followMode: 'tracking',
+        horizontalDeadzoneWidth: 45,
+        verticalDeadzoneHeight: 100,
+        verticalSpacing: 20,
+        topOffset: 20,
+    };
+    class TooltipElement {
+        _chart;
+        _element;
+        _titleElement;
+        _priceElement;
+        _dateElement;
+        _timeElement;
+        _options;
+        _lastTooltipWidth = null;
+        constructor(chart, options) {
+            this._options = {
+                ...defaultOptions$5,
+                ...options,
+            };
+            this._chart = chart;
+            const element = document.createElement('div');
+            applyStyle(element, {
+                display: 'flex',
+                'flex-direction': 'column',
+                'align-items': 'center',
+                position: 'absolute',
+                transform: 'translate(calc(0px - 50%), 0px)',
+                opacity: '0',
+                left: '0%',
+                top: '0',
+                'z-index': '100',
+                'background-color': 'white',
+                'border-radius': '4px',
+                padding: '5px 10px',
+                'font-family': "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+                'font-size': '12px',
+                'font-weight': '400',
+                'box-shadow': '0px 2px 4px rgba(0, 0, 0, 0.2)',
+                'line-height': '16px',
+                'pointer-events': 'none',
+                color: '#131722',
+            });
+            const titleElement = document.createElement('div');
+            applyStyle(titleElement, {
+                'font-size': '16px',
+                'line-height': '24px',
+                'font-weight': '590',
+            });
+            setElementText(titleElement, this._options.title);
+            element.appendChild(titleElement);
+            const priceElement = document.createElement('div');
+            applyStyle(priceElement, {
+                'font-size': '14px',
+                'line-height': '18px',
+                'font-weight': '590',
+            });
+            setElementText(priceElement, '');
+            element.appendChild(priceElement);
+            const dateElement = document.createElement('div');
+            applyStyle(dateElement, {
+                color: '#787B86',
+            });
+            setElementText(dateElement, '');
+            element.appendChild(dateElement);
+            const timeElement = document.createElement('div');
+            applyStyle(timeElement, {
+                color: '#787B86',
+            });
+            setElementText(timeElement, '');
+            element.appendChild(timeElement);
+            this._element = element;
+            this._titleElement = titleElement;
+            this._priceElement = priceElement;
+            this._dateElement = dateElement;
+            this._timeElement = timeElement;
+            const chartElement = this._chart.chartElement();
+            chartElement.appendChild(this._element);
+            const chartElementParent = chartElement.parentElement;
+            if (!chartElementParent) {
+                console.error('Chart Element is not attached to the page.');
+                return;
+            }
+            const position = getComputedStyle(chartElementParent).position;
+            if (position !== 'relative' && position !== 'absolute') {
+                console.error('Chart Element position is expected be `relative` or `absolute`.');
+            }
+        }
+        destroy() {
+            if (this._chart && this._element)
+                this._chart.chartElement().removeChild(this._element);
+        }
+        applyOptions(options) {
+            this._options = {
+                ...this._options,
+                ...options,
+            };
+        }
+        options() {
+            return this._options;
+        }
+        updateTooltipContent(tooltipContentData) {
+            if (!this._element)
+                return;
+            const tooltipMeasurement = this._element.getBoundingClientRect();
+            this._lastTooltipWidth = tooltipMeasurement.width;
+            if (tooltipContentData.title !== undefined && this._titleElement) {
+                setElementText(this._titleElement, tooltipContentData.title);
+            }
+            setElementText(this._priceElement, tooltipContentData.price);
+            setElementText(this._dateElement, tooltipContentData.date);
+            setElementText(this._timeElement, tooltipContentData.time);
+        }
+        updatePosition(positionData) {
+            if (!this._chart || !this._element)
+                return;
+            this._element.style.opacity = positionData.visible ? '1' : '0';
+            if (!positionData.visible) {
+                return;
+            }
+            const x = this._calculateXPosition(positionData, this._chart);
+            const y = this._calculateYPosition(positionData);
+            this._element.style.transform = `translate(${x}, ${y})`;
+        }
+        _calculateXPosition(positionData, chart) {
+            const x = positionData.paneX + chart.priceScale('left').width();
+            const deadzoneWidth = this._lastTooltipWidth
+                ? Math.ceil(this._lastTooltipWidth / 2)
+                : this._options.horizontalDeadzoneWidth;
+            const xAdjusted = Math.min(Math.max(deadzoneWidth, x), chart.timeScale().width() - deadzoneWidth);
+            return `calc(${xAdjusted}px - 50%)`;
+        }
+        _calculateYPosition(positionData) {
+            if (this._options.followMode == 'top') {
+                return `${this._options.topOffset}px`;
+            }
+            const y = positionData.paneY;
+            const flip = y <= this._options.verticalSpacing + this._options.verticalDeadzoneHeight;
+            const yPx = y + (flip ? 1 : -1) * this._options.verticalSpacing;
+            const yPct = flip ? '' : ' - 100%';
+            return `calc(${yPx}px${yPct})`;
+        }
+    }
+    function setElementText(element, text) {
+        if (!element || text === element.innerText)
+            return;
+        element.innerText = text;
+        element.style.display = text ? 'block' : 'none';
+    }
+    function applyStyle(element, styles) {
+        for (const [key, value] of Object.entries(styles)) {
+            element.style.setProperty(key, value);
+        }
+    }
+
     function convertTime(t) {
         if (lightweightCharts.isUTCTimestamp(t))
             return t * 1000;
@@ -2888,6 +3079,199 @@ var Lib = (function (exports, lightweightCharts) {
         const minutes = dateObj.getMinutes().toString().padStart(2, '0');
         const formattedTime = `${hours}:${minutes}`;
         return [formattedDate, formattedTime];
+    }
+
+    let TooltipCrosshairLinePaneRenderer$1 = class TooltipCrosshairLinePaneRenderer {
+        _data;
+        constructor(data) {
+            this._data = data;
+        }
+        draw(target) {
+            if (!this._data.visible)
+                return;
+            target.useBitmapCoordinateSpace(scope => {
+                const ctx = scope.context;
+                const crosshairPos = positionsLine(this._data.x, scope.horizontalPixelRatio, 1);
+                ctx.fillStyle = this._data.color;
+                ctx.fillRect(crosshairPos.position, this._data.topMargin * scope.verticalPixelRatio, crosshairPos.length, scope.bitmapSize.height);
+            });
+        }
+    };
+    let MultiTouchCrosshairPaneView$1 = class MultiTouchCrosshairPaneView {
+        _data;
+        constructor(data) {
+            this._data = data;
+        }
+        update(data) {
+            this._data = data;
+        }
+        renderer() {
+            return new TooltipCrosshairLinePaneRenderer$1(this._data);
+        }
+        zOrder() {
+            return 'bottom';
+        }
+    };
+    const defaultOptions$4 = {
+        lineColor: 'rgba(0, 0, 0, 0.2)',
+        priceExtractor: (data) => {
+            if (data.value !== undefined) {
+                return data.value.toFixed(2);
+            }
+            if (data.close !== undefined) {
+                return data.close.toFixed(2);
+            }
+            return '';
+        }
+    };
+    class TooltipPrimitive {
+        _options;
+        _tooltip = undefined;
+        _paneViews;
+        _data = {
+            x: 0,
+            visible: false,
+            color: 'rgba(0, 0, 0, 0.2)',
+            topMargin: 0,
+        };
+        _attachedParams;
+        constructor(options) {
+            this._options = {
+                ...defaultOptions$4,
+                ...options,
+            };
+            this._paneViews = [new MultiTouchCrosshairPaneView$1(this._data)];
+        }
+        attached(param) {
+            this._attachedParams = param;
+            this._setCrosshairMode();
+            param.chart.subscribeCrosshairMove(this._moveHandler);
+            this._createTooltipElement();
+        }
+        detached() {
+            const chart = this.chart();
+            if (chart) {
+                chart.unsubscribeCrosshairMove(this._moveHandler);
+            }
+        }
+        paneViews() {
+            return this._paneViews;
+        }
+        updateAllViews() {
+            this._paneViews.forEach(pw => pw.update(this._data));
+        }
+        setData(data) {
+            this._data = data;
+            this.updateAllViews();
+            this._attachedParams?.requestUpdate();
+        }
+        currentColor() {
+            return this._options.lineColor;
+        }
+        chart() {
+            return this._attachedParams?.chart;
+        }
+        series() {
+            return this._attachedParams?.series;
+        }
+        applyOptions(options) {
+            this._options = {
+                ...this._options,
+                ...options,
+            };
+            if (this._tooltip) {
+                this._tooltip.applyOptions({ ...this._options.tooltip });
+            }
+        }
+        _setCrosshairMode() {
+            const chart = this.chart();
+            if (!chart) {
+                throw new Error('Unable to change crosshair mode because the chart instance is undefined');
+            }
+            chart.applyOptions({
+                crosshair: {
+                    mode: lightweightCharts.CrosshairMode.Magnet,
+                    vertLine: {
+                        visible: false,
+                        labelVisible: false,
+                    },
+                    horzLine: {
+                        visible: false,
+                        labelVisible: false,
+                    }
+                },
+            });
+        }
+        _moveHandler = (param) => this._onMouseMove(param);
+        _hideTooltip() {
+            if (!this._tooltip)
+                return;
+            this._tooltip.updateTooltipContent({
+                title: '',
+                price: '',
+                date: '',
+                time: '',
+            });
+            this._tooltip.updatePosition({
+                paneX: 0,
+                paneY: 0,
+                visible: false,
+            });
+        }
+        _hideCrosshair() {
+            this._hideTooltip();
+            this.setData({
+                x: 0,
+                visible: false,
+                color: this.currentColor(),
+                topMargin: 0,
+            });
+        }
+        _onMouseMove(param) {
+            const chart = this.chart();
+            const series = this.series();
+            const logical = param.logical;
+            if (!logical || !chart || !series) {
+                this._hideCrosshair();
+                return;
+            }
+            const data = param.seriesData.get(series);
+            if (!data) {
+                this._hideCrosshair();
+                return;
+            }
+            const price = this._options.priceExtractor(data);
+            const coordinate = chart.timeScale().logicalToCoordinate(logical);
+            const [date, time] = formattedDateAndTime(param.time ? convertTime(param.time) : undefined);
+            if (this._tooltip) {
+                const tooltipOptions = this._tooltip.options();
+                const topMargin = tooltipOptions.followMode == 'top' ? tooltipOptions.topOffset + 10 : 0;
+                this.setData({
+                    x: coordinate ?? 0,
+                    visible: coordinate !== null,
+                    color: this.currentColor(),
+                    topMargin,
+                });
+                this._tooltip.updateTooltipContent({
+                    price,
+                    date,
+                    time,
+                });
+                this._tooltip.updatePosition({
+                    paneX: param.point?.x ?? 0,
+                    paneY: param.point?.y ?? 0,
+                    visible: true,
+                });
+            }
+        }
+        _createTooltipElement() {
+            const chart = this.chart();
+            if (!chart)
+                throw new Error('Unable to create Tooltip element. Chart not attached');
+            this._tooltip = new TooltipElement(chart, {
+                ...this._options.tooltip,
+            });
+        }
     }
 
     class TooltipCrosshairLinePaneRenderer {
@@ -4301,7 +4685,7 @@ var Lib = (function (exports, lightweightCharts) {
         wrapper;
         div;
         indicator_div;
-        indicator_chart;
+        indicator_chart = null;
         indicators = Object();
         chart;
         scale;
@@ -4316,7 +4700,7 @@ var Lib = (function (exports, lightweightCharts) {
         alerts = [];
         _seriesMap = {};
         // TODO find a better solution rather than the 'position' parameter
-        constructor(chartId, innerWidth, innerHeight, position, autoSize) {
+        constructor(chartId, innerWidth, innerHeight, position, autoSize, createIndicatorChart) {
             this.reSize = this.reSize.bind(this);
             this.id = chartId;
             this.scale = {
@@ -4334,7 +4718,9 @@ var Lib = (function (exports, lightweightCharts) {
             this.indicator_div.style.position = 'relative';
             this.wrapper.appendChild(this.indicator_div);
             this.indicator_div.style.display = "none";
-            this.indicator_chart = this.createIndicator();
+            if (createIndicatorChart) {
+                this.indicator_chart = this.createIndicator();
+            }
             this.chart = this._createChart();
             this.series = this.createCandlestickSeries();
             this.candlestickSeries = this.series; // alias
@@ -4407,6 +4793,19 @@ var Lib = (function (exports, lightweightCharts) {
                 handleScroll: { vertTouchDrag: true },
             });
         }
+        setRootDivStyles(styles) {
+            const divStyles = this.div.style;
+            console.log("Setting styles", styles);
+            for (const [key, value] of Object.entries(styles)) {
+                divStyles[key] = value;
+            }
+        }
+        //   public setRootDivStyles (styles: any) {
+        //     const divStyles = this.div.style;
+        //     for (const [k, v] of Object.entries(styles)) {
+        //       divStyles[k] = v;
+        //     }
+        //   }
         setVisible(display) {
             if (display) {
                 this.div.style.display = "flex";
@@ -4466,13 +4865,15 @@ var Lib = (function (exports, lightweightCharts) {
             return this._topBar;
         }
         createVolumeProfile(data) {
-            const options = { color: 'rgba(214, 237, 255, 0.6)',
+            const options = {
+                color: 'rgba(214, 237, 255, 0.6)',
                 lineStye: 0,
                 lineWidth: 2,
                 lastValueVisible: true,
                 priceLineVisible: true,
                 crosshairMarkerVisible: true,
-                priceScaleId: undefined };
+                priceScaleId: undefined
+            };
             const line = this.createLineSeries("price", options);
             line.series.setData(data);
             console.log("Created line with data", data);
@@ -4534,6 +4935,8 @@ var Lib = (function (exports, lightweightCharts) {
             return indicator;
         }
         removeIndicator(name) {
+            if (this.indicator_chart === null)
+                return;
             if (Object.keys(this.indicators).includes(name)) {
                 this.indicator_chart.removeSeries(this.indicators[name]);
                 delete this.indicators[name];
@@ -4596,6 +4999,8 @@ var Lib = (function (exports, lightweightCharts) {
         }
         addIndicator(name, options) {
             // TODO: remove line if preesnt with same name
+            if (this.indicator_chart === null)
+                return;
             const line = this.indicator_chart.addLineSeries({ ...options });
             this.indicators[name] = line;
             return {
@@ -4603,23 +5008,48 @@ var Lib = (function (exports, lightweightCharts) {
                 series: line
             };
         }
+        setIndicatorData(name, data) {
+            if (this.indicator_chart === null)
+                return;
+            const indicator = this.indicators[name];
+            indicator.setData(data);
+            this.createIndicatorToolTip(indicator);
+        }
         resizeIndicators(scaleHeight) {
             // const height = this.indicator_chart
+            if (this.indicator_chart === null)
+                return;
             console.log("Indicator chart panesize", this.indicator_chart.paneSize());
             console.log("Indicator chart set new height", window.innerHeight * this.scale.height * scaleHeight);
             this.indicator_chart.resize(window.innerWidth * this.scale.width, window.innerHeight * this.scale.height * scaleHeight);
         }
         resizeIndicatorsToWindow() {
+            if (this.indicator_chart === null)
+                return;
             this.indicator_chart.resize(window.innerWidth * this.scale.width, window.innerHeight * this.scale.height * .2);
         }
         showIndicators() {
+            if (this.indicator_chart === null)
+                return;
             this.indicator_div.style.height = `${20 * this.scale.height}%`;
             this.indicator_div.style.display = "flex";
         }
         hideIndicators() {
+            if (this.indicator_chart === null)
+                return;
             this.indicator_div.style.height = `${0 * this.scale.height}%`;
             this.indicator_div.style.display = "none";
         }
+        createIndicatorToolTip(series, followMode = "top") {
+            const tooltip = new TooltipPrimitive({
+                lineColor: 'rgba(150, 150, 150, 0.2)',
+                tooltip: {
+                    followMode: followMode,
+                }
+            });
+            series.attachPrimitive(tooltip);
+        }
+        ;
         createUserPriceAlert(symbol) {
             const alert = new UserPriceAlerts();
             alert.setSymbolName(symbol);
@@ -4635,6 +5065,16 @@ var Lib = (function (exports, lightweightCharts) {
         ;
         createUserPriceLine() {
             new UserPriceLines(this.chart, this.series, { color: 'hotpink' });
+        }
+        ;
+        createToolTip(followMode = "top") {
+            const tooltip = new TooltipPrimitive({
+                lineColor: 'rgba(150, 150, 150, 0.2)',
+                tooltip: {
+                    followMode: followMode,
+                }
+            });
+            this.series.attachPrimitive(tooltip);
         }
         ;
         createDeltaToolTip() {
@@ -4705,6 +5145,8 @@ var Lib = (function (exports, lightweightCharts) {
             parentChart.chart.timeScale().subscribeVisibleLogicalRangeChange(setChildRange);
         }
         syncParentIndicatorChart(crosshairOnly = false) {
+            if (this.indicator_chart === null)
+                return;
             const indicatorChart = this.indicator_chart;
             function crosshairHandler(chart, point) {
                 if (!point) {
@@ -4944,7 +5386,10 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
             div.addEventListener('mouseover', () => div.style.backgroundColor = 'rgba(60, 60, 60, 0.6)');
             div.addEventListener('mouseout', () => div.style.backgroundColor = 'transparent');
             div.addEventListener('mousedown', () => div.style.backgroundColor = 'rgba(60, 60, 60)');
-            div.addEventListener('click', () => window.callbackFunction(callbackString));
+            div.addEventListener('click', (e) => {
+                const keys = (({ ctrlKey, altKey, shiftKey }) => ({ ctrlKey, altKey, shiftKey }))(e);
+                window.callbackFunction(`${callbackString};;;${JSON.stringify(keys)}`);
+            });
             div.addEventListener('mouseup', () => div.style.backgroundColor = 'rgba(60, 60, 60, 0.6)');
         }
         newRow(id, returnClickedCell = false) {
@@ -5086,12 +5531,12 @@ d="M 15 15 L 21 21 M 10 17 C 6.132812 17 3 13.867188 3 10 C 3 6.132812 6.132812 
                 this.header = textBoxes;
             }
         }
-        reSize(width, height) {
+        reSize(width, height = .8) {
             this._div.style.width = width <= 1 ? width * 100 + '%' : width + 'px';
             // this._div.style.height = height <= 1 ? height * 100 + '%' : height + 'px'
             this._div.style.display = "flex";
             this._div.style.flexDirection = "column";
-            this._div.style.height = `calc(100vh - 20px)`;
+            this._div.style.height = `calc(${height * 100}vh)`;
             this._div.style.overflow = "hidden";
         }
     }

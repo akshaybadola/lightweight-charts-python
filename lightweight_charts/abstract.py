@@ -98,7 +98,8 @@ class Window:
         sync_id: Optional[str] = None,
         scale_candles_only: bool = False,
         sync_crosshairs_only: bool = False,
-        toolbox: bool = False
+        toolbox: bool = False,
+        add_indicator_chart: bool = True
     ) -> 'Container':
         subchart = Container(
             self,
@@ -106,7 +107,8 @@ class Window:
             height,
             scale_candles_only,
             toolbox,
-            position=position
+            position=position,
+            add_indicator_chart=add_indicator_chart
         )
         if not sync_id:
             return subchart
@@ -666,10 +668,11 @@ class Candlestick(SeriesCommon):
 class Container(Pane):
     def __init__(self, window: Window, width: float = 1.0, height: float = 1.0,
                  scale_candles_only: bool = False, toolbox: bool = False,
-                 autosize: bool = True, position: FLOAT = 'left'):
+                 autosize: bool = True, position: FLOAT = 'left',
+                 add_indicator_chart: bool = False):
         # FIXME: YUCK
-        Pane.__init__(self, window)
-
+        # Pane.__init__(self, window)
+        super().__init__(window)
         self._lines = []
         self._scale_candles_only = scale_candles_only
         self._width = width
@@ -678,7 +681,8 @@ class Container(Pane):
 
         # Container is actually a `Handler`
         self.run_script(
-            f'{self.id} = new Lib.Handler("{self.id}", {width}, {height}, "{position}", {jbool(autosize)})')
+            f'''{self.id} = new Lib.Handler("{self.id}", {width}, {height},
+            "{position}", {jbool(autosize)}, {jbool(add_indicator_chart)})''')
 
         self._candlestick = Candlestick(self)
 
@@ -691,6 +695,8 @@ class Container(Pane):
         self._timeframe = "1min"
 
     def update_historical_data(self, data: pd.DataFrame):
+        data.sort_index(inplace=True)
+        data = data[~data.index.duplicated(keep="first")]
         if not data.index.max() < self._data.index.min():
             # HACK: Ignore mismatched time data
             # print("\nTrying to update mismatched time data", self._data, data)
@@ -701,8 +707,11 @@ class Container(Pane):
         self._post_set_data(df)
 
     def set(self, data: pd.DataFrame, keep_drawings=False):
+        data.sort_index(inplace=True)
+        data = data[~data.index.duplicated(keep="first")]
         self._data = data.copy()
-        self._min_date = self._data.index.min().date()
+        if len(self._data):
+            self._min_date = self._data.index.min().date()
         df = self._candlestick.set(data)
         self._post_set_data(df, keep_drawings)
         # TODO: Separate user data from market data
@@ -714,6 +723,8 @@ class Container(Pane):
 
     # TODO: line should have `transform` variable which keeps the method used to create the line
     def _post_set_data(self, df, keep_drawings=False):
+        if df is None or not len(df):
+            return
         for line in self._lines:
             if line.name in df.columns:
                 line.set(df[['time', line.name]], format_cols=False)
@@ -1005,7 +1016,7 @@ class Container(Pane):
         df["time"] = df.time.map(lambda x: x.timestamp())
         self.run_script(f'{self.id}.createVolumeProfile({js_data(df)});')
 
-    def create_tool_tip(self):
+    def create_delta_tooltip(self):
         self.run_script(f'{self.id}.createDeltaToolTip();')
 
     def create_horizontal_line(self, price: NUM, color: str = 'rgb(122, 146, 202)', width: int = 2,
@@ -1070,7 +1081,7 @@ class Container(Pane):
     #       self._indicators[name] can be either a single indicator or a dict
     def set_indicator_data(self, name, data):
         data["time"] = data.time.map(datetime.timestamp)
-        self.run_script(f'{self.id}.indicators["{name}"].setData({js_data(data)});')
+        self.run_script(f'{self.id}.setIndicatorData("{name}", {js_data(data)})')
         self.run_script(f'''
             {self.id}.syncParentIndicatorChart(
                 {jbool(False)}
@@ -1079,3 +1090,6 @@ class Container(Pane):
 
     def resize_indicators(self, scale):
         self.run_script(f'{self.id}.resizeIndicators({scale});')
+
+    def create_tooltip(self):
+        self.run_script(f'{self.id}.createToolTip("tracking");')

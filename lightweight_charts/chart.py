@@ -69,6 +69,7 @@ class PyWV:
             i, arg = self.queue.get()
 
             if i == 'start':
+                print("Is start called again?")
                 webview.start(debug=self.debug, func=self.loop)
                 self.is_alive = False
                 self.emit_queue.put('exit')
@@ -192,10 +193,15 @@ class Chart(abstract.Container):
         scale_candles_only: bool = False,
         position: FLOAT = 'left',
     ):
-        # WV is an instance, so a `create_window` is called
+        # - WV is an instance, so a `create_window` is called
+        # - Each window is numbered and created by the WV
+        # - WV itself creates PyWV in a new Process, though even if I create more windows,
+        #   no new processes are created. Also there are only two procs visible always.
         self._i = Chart.WV.create_window(
                     width, height, x, y, screen, on_top, maximize, title
                 )
+        # abstract.Window is not really a window but a thin abstraction layer
+        # In fact, it's a very leaky abstraction layer
         window = abstract.Window(
                     script_func=lambda s: Chart.WV.evaluate_js(self._i, s),
                     js_api_code='pywebview.api.callback'
@@ -205,10 +211,14 @@ class Chart(abstract.Container):
         abstract.Window.return_q = Chart.WV.return_queue
         self.is_alive = True
 
+        # This also patches `Chart` class
+        # This is AWFUL AWFUL code
         if Chart._main_window_handlers is None:
+            # this calls Chart.__init__
             super().__init__(window, inner_width, inner_height, scale_candles_only, toolbox, position=position)
             Chart._main_window_handlers = self.win.handlers
         else:
+            # this also calls Chart.__init__, but  does not create new _main_window_handlers
             window.handlers = Chart._main_window_handlers
             super().__init__(window, inner_width, inner_height, scale_candles_only, toolbox, position=position)
 
@@ -230,8 +240,8 @@ class Chart(abstract.Container):
     async def show_async(self):
         self.show(block=False)
         try:
-            from lightweight_charts import polygon
-            [asyncio.create_task(self.polygon.async_set(*args)) for args in polygon._set_on_load]
+            # from lightweight_charts import polygon
+            # [asyncio.create_task(self.polygon.async_set(*args)) for args in polygon._set_on_load]
             while 1:
                 while Chart.WV.emit_queue.empty() and self.is_alive:
                     await asyncio.sleep(0.05)
@@ -250,9 +260,11 @@ class Chart(abstract.Container):
 
     def hide(self):
         """
-        Hides the chart window.\n
+        Hides the chart window.
+        Not sure where the window goes.
+
         """
-        self._q.put((self._i, 'hide'))
+        Chart.WV.hide(self._i)
 
     def exit(self):
         """
